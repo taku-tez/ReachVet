@@ -9,6 +9,7 @@ import { createGoAdapter } from './go/index.js';
 import { createJavaAdapter } from './java/index.js';
 import { createRustAdapter } from './rust/index.js';
 import { rubyAdapter } from './ruby/index.js';
+import { phpAdapter } from './php/index.js';
 
 // Create adapter instances
 const goAdapter = createGoAdapter();
@@ -24,6 +25,7 @@ const adapters = new Map<SupportedLanguage, LanguageAdapter>([
   ['java', javaAdapter as LanguageAdapter],
   ['rust', rustAdapter as LanguageAdapter],
   ['ruby', rubyAdapter as LanguageAdapter],
+  ['php', phpAdapter as LanguageAdapter],
 ]);
 
 /**
@@ -71,3 +73,4 @@ export { GoLanguageAdapter, createGoAdapter, parseGoModFile } from './go/index.j
 export { JavaLanguageAdapter, createJavaAdapter, parsePomFile, parseGradleFile } from './java/index.js';
 export { RustLanguageAdapter, createRustAdapter, parseCargoTomlFile } from './rust/index.js';
 export { rubyAdapter } from './ruby/index.js';
+export { phpAdapter } from './php/index.js';
