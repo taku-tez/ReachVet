@@ -149,20 +149,94 @@ Status: ✅ Completed (2026-02-04 04:17)
 - 39 new tests (java-parser.test.ts, java-adapter.test.ts)
 - Total: 220 tests passing
 
-## Batch 12: Rust Language Support 🟡 MED
-- Rust use解析
-  - `use crate::module;`
-  - `use pkg::*;` (glob)
-  - `use pkg::{a, b, c};` (nested)
-- Cargo.toml 対応
+## Batch 12: Rust Language Support 🟡 MED ✅ DONE (2026-02-04 04:33)
+- Rust use解析 ✅
+  - `use crate::module;` ✅
+  - `use pkg::*;` (glob) ✅
+  - `use pkg::{a, b, c};` (nested) ✅
+  - `pub use`, `super::`, `self::` imports ✅
+  - Multiline use statements ✅
+  - Aliased imports (`as alias`) ✅
+- Cargo.toml 対応 ✅
+  - Package info (name, version, edition) ✅
+  - Simple, inline table, and sub-table dependencies ✅
+  - dev-dependencies, build-dependencies ✅
+  - Git/path sources, optional, features ✅
+- Crate usage detection ✅
+- Standard library detection ✅
+- Crate name normalization (- to _) ✅
 
-Status: ⬜ Not started
+Status: ✅ Completed (2026-02-04 04:33)
+- New files: src/languages/rust/{parser,index}.ts
+- 41 new tests (rust-parser.test.ts, rust-adapter.test.ts)
+- Total: 261 tests passing
+
+## Batch 13: SARIF Output Support 🟡 MED ✅ DONE (2026-02-04 05:21)
+- SARIF 2.1.0 format output ✅
+  - GitHub Code Scanning compatible ✅
+  - Full SARIF schema compliance ✅
+- 6 predefined rules ✅
+  - RV001: VulnerableReachable (error, security-severity 9.0)
+  - RV002: DependencyReachable (note)
+  - RV003: DependencyImported (note)
+  - RV101: DynamicImportDetected (warning)
+  - RV102: NamespaceImportDetected (note)
+  - RV103: StarImportDetected (note)
+- CLI integration ✅
+  - --sarif option for analyze command
+  - --sarif option for check command
+- Result fingerprints for deduplication ✅
+- Properties with vulnerability details ✅
+
+Status: ✅ Completed (2026-02-04 05:21)
+- New file: src/output/sarif.ts
+- 11 new tests (sarif.test.ts)
+- Total: 272 tests passing
+
+---
+
+## 🚀 Phase 3: Additional Features (Planned)
+
+## Batch 14: HTML/Markdown Report Generation 🟢 LOW
+- Standalone HTML report with charts
+- Markdown summary for PRs
+- Treemap visualization of dependencies
+- Filter/search in HTML report
+
+## Batch 15: Ruby Language Support 🟡 MED
+- Ruby require/require_relative parsing
+- Bundler Gemfile/Gemfile.lock
+- RubyGems ecosystem
+
+## Batch 16: PHP Language Support 🟡 MED
+- PHP use/require/include statements
+- Composer composer.json/composer.lock
+- Packagist ecosystem
+
+## Batch 17: C#/.NET Language Support 🟡 MED
+- C# using statements
+- NuGet packages.config/.csproj
+- .NET ecosystem
 
 ---
 
 ## Progress Log
 
 ### 2026-02-04
+- 04:33 Batch 12 Rust言語サポート完了 - 41 new tests, 261 total
+  - Rust use parser (simple, nested, glob, aliased, multiline)
+  - Cargo.toml parser (deps, dev-deps, build-deps, features)
+  - Crate usage detection
+  - Standard library detection
+  - Crate name normalization (serde-json → serde_json)
+  - Integration tests with temp Rust project
+- 05:21 Batch 13 SARIF出力サポート完了 - 11 new tests, 272 total
+  - SARIF 2.1.0 format output (GitHub Code Scanning compatible)
+  - src/output/sarif.ts: Full SARIF converter
+  - 6 predefined rules (RV001-RV003, RV101-RV103)
+  - --sarif option added to analyze and check commands
+  - Fingerprints for result deduplication
+  - Security-severity tags for vulnerable results
 - 04:17 Batch 11 Java言語サポート完了 - 39 new tests, 220 total
   - Java import parser (regular, wildcard, static, static wildcard)
   - Maven pom.xml parser (dependencies, project info)

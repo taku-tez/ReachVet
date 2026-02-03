@@ -9,6 +9,7 @@ import chalk from 'chalk';
 import { Analyzer, OSVClient } from './core/analyzer.js';
 import { parseSimpleJson, parseFromStdin, parseSBOM } from './input/index.js';
 import { listSupportedLanguages, detectLanguage } from './languages/index.js';
+import { toSarif } from './output/index.js';
 import type { Component, ComponentResult, AnalysisOutput } from './types.js';
 
 const VERSION = '0.2.0';
@@ -31,6 +32,7 @@ program
   .option('-l, --language <lang>', 'Language (javascript, typescript)')
   .option('-v, --verbose', 'Show progress')
   .option('--pretty', 'Pretty print JSON output')
+  .option('--sarif', 'Output in SARIF format (for GitHub Code Scanning)')
   .option('--osv', 'Fetch vulnerability data from OSV.dev')
   .option('--osv-cache <dir>', 'OSV cache directory')
   .option('--osv-ttl <seconds>', 'OSV cache TTL in seconds', parseInt)
@@ -80,11 +82,19 @@ program
 
       const output = await analyzer.analyze(components);
 
-      // Output JSON
-      const json = options.pretty
-        ? JSON.stringify(output, null, 2)
-        : JSON.stringify(output);
-      console.log(json);
+      // Output in selected format
+      if (options.sarif) {
+        const sarif = toSarif(output);
+        const json = options.pretty
+          ? JSON.stringify(sarif, null, 2)
+          : JSON.stringify(sarif);
+        console.log(json);
+      } else {
+        const json = options.pretty
+          ? JSON.stringify(output, null, 2)
+          : JSON.stringify(output);
+        console.log(json);
+      }
 
       // Exit codes
       if (output.summary.vulnerableReachable > 0) {
@@ -109,6 +119,7 @@ program
   .option('--stdin', 'Read component list from stdin')
   .option('-l, --language <lang>', 'Language (javascript, typescript)')
   .option('--json', 'Output as JSON instead')
+  .option('--sarif', 'Output in SARIF format (for GitHub Code Scanning)')
   .option('--osv', 'Fetch vulnerability data from OSV.dev')
   .option('--osv-cache <dir>', 'OSV cache directory')
   .option('--osv-ttl <seconds>', 'OSV cache TTL in seconds', parseInt)
@@ -143,6 +154,12 @@ program
       });
 
       const output = await analyzer.analyze(components);
+
+      if (options.sarif) {
+        const sarif = toSarif(output);
+        console.log(JSON.stringify(sarif, null, 2));
+        return;
+      }
 
       if (options.json) {
         console.log(JSON.stringify(output, null, 2));
