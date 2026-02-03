@@ -11,6 +11,7 @@ import { createRustAdapter } from './rust/index.js';
 import { rubyAdapter } from './ruby/index.js';
 import { phpAdapter } from './php/index.js';
 import { csharpAdapter } from './csharp/index.js';
+import { swiftAdapter } from './swift/index.js';
 
 // Create adapter instances
 const goAdapter = createGoAdapter();
@@ -28,6 +29,7 @@ const adapters = new Map<SupportedLanguage, LanguageAdapter>([
   ['ruby', rubyAdapter as LanguageAdapter],
   ['php', phpAdapter as LanguageAdapter],
   ['csharp', csharpAdapter as LanguageAdapter],
+  ['swift', swiftAdapter as LanguageAdapter],
 ]);
 
 /**
@@ -77,3 +79,4 @@ export { RustLanguageAdapter, createRustAdapter, parseCargoTomlFile } from './ru
 export { rubyAdapter } from './ruby/index.js';
 export { phpAdapter } from './php/index.js';
 export { csharpAdapter } from './csharp/index.js';
+export { swiftAdapter } from './swift/index.js';
