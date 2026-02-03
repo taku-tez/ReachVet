@@ -146,8 +146,8 @@ export function parseSource(source: string, fileName: string = 'file.cs'): CShar
       continue;
     }
 
-    // using Alias = Namespace.Class;
-    const usingAliasMatch = trimmed.match(/^using\s+([A-Za-z0-9_]+)\s*=\s*([A-Za-z0-9_.]+)\s*;/);
+    // using Alias = Namespace.Class; (also handles generics like Dictionary<string, object>)
+    const usingAliasMatch = trimmed.match(/^using\s+([A-Za-z0-9_]+)\s*=\s*([A-Za-z0-9_.<>,\s]+)\s*;/);
     if (usingAliasMatch) {
       imports.push({
         moduleName: usingAliasMatch[2],

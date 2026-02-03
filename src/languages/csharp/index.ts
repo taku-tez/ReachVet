@@ -1,9 +1,11 @@
 /**
- * ReachVet - C# Language Adapter
+ * ReachVet - C#/.NET Language Adapter
  */
 
 import { glob } from 'glob';
 import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { BaseLanguageAdapter } from '../base.js';
 import { parseSource, findClassUsages, getNamespacesForPackage, isSystemNamespace, type CSharpImportInfo } from './parser.js';
 import type { Component, ComponentResult, SupportedLanguage, UsageInfo, CodeLocation, AnalysisWarning } from '../../types.js';
@@ -16,21 +18,19 @@ export class CSharpAdapter extends BaseLanguageAdapter {
     '**/bin/**',
     '**/obj/**',
     '**/node_modules/**',
+    '**/.vs/**',
+    '**/packages/**',
     '**/*.Designer.cs',
+    '**/*.g.cs',
     '**/*.generated.cs',
     '**/Migrations/**',
   ];
 
   async canHandle(sourceDir: string): Promise<boolean> {
-    // Check for .csproj, .sln, or packages.config
-    const patterns = ['**/*.csproj', '**/*.sln', '**/packages.config'];
-    
-    for (const pattern of patterns) {
-      const files = await glob(pattern, { cwd: sourceDir, nodir: true });
-      if (files.length > 0) return true;
-    }
-    
-    return false;
+    // Check for .csproj files or .sln files
+    const hasCsproj = await glob('**/*.csproj', { cwd: sourceDir, ignore: this.ignorePatterns });
+    const hasSln = await glob('*.sln', { cwd: sourceDir });
+    return hasCsproj.length > 0 || hasSln.length > 0 || existsSync(join(sourceDir, 'packages.config'));
   }
 
   async analyze(sourceDir: string, components: Component[]): Promise<ComponentResult[]> {
@@ -72,23 +72,28 @@ export class CSharpAdapter extends BaseLanguageAdapter {
     const matchingImports: Array<{ file: string; import: CSharpImportInfo; source: string }> = [];
     const warnings: AnalysisWarning[] = [];
 
-    // Get expected namespaces for this package
+    // Get expected namespaces for this NuGet package
     const expectedNamespaces = getNamespacesForPackage(component.name);
+    
+    // Also try direct namespace matching from package name
+    // e.g., "Newtonsoft.Json" -> "Newtonsoft.Json"
+    // e.g., "Microsoft.Extensions.Logging" -> "Microsoft.Extensions.Logging"
+    const allNamespaces = [...new Set([...expectedNamespaces, component.name])];
 
     // Find matching imports
     for (const { file, imports, source } of allImports) {
       for (const imp of imports) {
-        // Skip System namespaces unless the package is a System.* package
-        if (isSystemNamespace(imp.moduleName) && !component.name.startsWith('System.')) {
+        // Skip system namespaces (they're part of BCL, not external packages)
+        if (isSystemNamespace(imp.moduleName)) {
           continue;
         }
 
         // Check if the using statement matches any expected namespace
-        const matchesNamespace = expectedNamespaces.some(ns => 
-          imp.moduleName === ns || 
-          imp.moduleName.startsWith(ns + '.') ||
-          ns.startsWith(imp.moduleName + '.')
-        );
+        const matchesNamespace = allNamespaces.some(ns => {
+          return imp.moduleName === ns || 
+                 imp.moduleName.startsWith(ns + '.') ||
+                 ns.startsWith(imp.moduleName + '.');
+        });
 
         if (matchesNamespace) {
           matchingImports.push({ file, import: imp, source });
@@ -104,15 +109,49 @@ export class CSharpAdapter extends BaseLanguageAdapter {
     // Collect usage info
     const locations: CodeLocation[] = matchingImports.map(m => m.import.location);
     
-    // Find class/method usages
-    const classNames = expectedNamespaces.map(ns => {
-      const parts = ns.split('.');
-      return parts[parts.length - 1];
-    });
+    // Extract class names from usings for usage detection
+    const classNames: string[] = [];
+    for (const m of matchingImports) {
+      const parts = m.import.moduleName.split('.');
+      // Take the last part as potential class name
+      const lastName = parts[parts.length - 1];
+      if (lastName && lastName !== '*') {
+        classNames.push(lastName);
+      }
+      // For static imports, the last part is definitely a class
+      if (m.import.importStyle === 'using_static') {
+        classNames.push(lastName);
+      }
+      // For aliases, track the alias name too
+      if (m.import.alias) {
+        classNames.push(m.import.alias);
+      }
+    }
 
+    // Common class names from namespaces
+    const namespaceToClasses: Record<string, string[]> = {
+      'Newtonsoft.Json': ['JsonConvert', 'JsonSerializer', 'JObject', 'JArray', 'JToken'],
+      'System.Text.Json': ['JsonSerializer', 'JsonDocument', 'JsonElement'],
+      'Microsoft.Extensions.Logging': ['ILogger', 'ILoggerFactory', 'LoggerFactory'],
+      'Microsoft.EntityFrameworkCore': ['DbContext', 'DbSet', 'EntityTypeBuilder'],
+      'AutoMapper': ['IMapper', 'Mapper', 'Profile'],
+      'Serilog': ['Log', 'ILogger', 'LoggerConfiguration'],
+      'Dapper': ['SqlMapper', 'DynamicParameters'],
+      'RestSharp': ['RestClient', 'RestRequest', 'RestResponse'],
+      'Polly': ['Policy', 'PolicyBuilder'],
+      'MediatR': ['IMediator', 'IRequest', 'IRequestHandler'],
+    };
+
+    for (const ns of allNamespaces) {
+      if (namespaceToClasses[ns]) {
+        classNames.push(...namespaceToClasses[ns]);
+      }
+    }
+
+    // Find class/method usages
     let usedMethods: string[] = [];
     for (const { source, file } of matchingImports) {
-      const usages = findClassUsages(source, classNames, file);
+      const usages = findClassUsages(source, [...new Set(classNames)], file);
       usedMethods.push(...usages.filter(u => u.method).map(u => u.method!));
     }
     usedMethods = [...new Set(usedMethods)];
