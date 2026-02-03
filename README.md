@@ -22,7 +22,7 @@ ReachVet helps you prioritize: focus on vulnerabilities that are actually reacha
 - 🔍 **Deep Analysis** - Tracks imports, named exports, and usage
 - 🎯 **Vulnerability Matching** - Checks if affected functions are used
 - 📊 **JSON Output** - Easy integration with CI/CD and other tools
-- 🧩 **Extensible** - Language adapter architecture (JS/TS now, more coming)
+- 🧩 **Multi-Language** - Supports 15 languages (JS/TS, Python, Go, Java, Rust, Ruby, PHP, C#, Swift, Kotlin, Scala, Elixir, Dart, Perl)
 
 ## Installation
 
@@ -189,9 +189,19 @@ for (const result of output.results) {
 |----------|--------|---------------|
 | JavaScript | ✅ | ESM, CommonJS, Dynamic |
 | TypeScript | ✅ | ESM, CommonJS, Dynamic |
-| Python | 🚧 Planned | |
-| Go | 🚧 Planned | |
-| Java | 🚧 Planned | |
+| Python | ✅ | import, from...import |
+| Go | ✅ | import |
+| Java | ✅ | import |
+| Rust | ✅ | use, extern crate |
+| Ruby | ✅ | require, require_relative |
+| PHP | ✅ | use, require, include |
+| C# | ✅ | using |
+| Swift | ✅ | import |
+| Kotlin | ✅ | import |
+| Scala | ✅ | import |
+| Elixir | ✅ | import, alias, use, require |
+| Dart | ✅ | import |
+| Perl | ✅ | use, require |
 
 ## Integration Examples
 
