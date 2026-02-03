@@ -195,6 +195,82 @@ describe('Analyzer - Re-export Chain', () => {
   });
 });
 
+describe('Analyzer - Namespace Import Analysis', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'reachvet-ns-'));
+    
+    await writeFile(
+      join(tempDir, 'package.json'),
+      JSON.stringify({ name: 'test-namespace', version: '1.0.0' })
+    );
+
+    await mkdir(join(tempDir, 'src'));
+  });
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('detects vulnerable function usage through namespace import', async () => {
+    await writeFile(
+      join(tempDir, 'src', 'app.ts'),
+      `
+        import * as _ from 'lodash';
+        export const render = _.template('<%= name %>');
+      `
+    );
+
+    const components: Component[] = [
+      { 
+        name: 'lodash', 
+        version: '4.17.20',
+        vulnerabilities: [{
+          id: 'CVE-2021-23337',
+          severity: 'high',
+          affectedFunctions: ['template']
+        }]
+      }
+    ];
+
+    const result = await quickAnalyze(tempDir, components);
+    
+    expect(result.results[0].status).toBe('reachable');
+    expect(result.results[0].confidence).toBe('high'); // High because we detected template usage
+    expect(result.results[0].usage?.usedMembers).toContain('template');
+  });
+
+  it('correctly identifies safe namespace usage', async () => {
+    await writeFile(
+      join(tempDir, 'src', 'safe.ts'),
+      `
+        import * as _ from 'lodash';
+        export const merged = _.merge({}, {});
+        export const cloned = _.clone({});
+      `
+    );
+
+    const components: Component[] = [
+      { 
+        name: 'lodash', 
+        version: '4.17.20',
+        vulnerabilities: [{
+          id: 'CVE-2021-23337',
+          affectedFunctions: ['template']  // Not using template
+        }]
+      }
+    ];
+
+    const result = await quickAnalyze(tempDir, components);
+    
+    // Should be 'imported' because we detected namespace usage but NOT the vulnerable function
+    expect(result.results[0].usage?.usedMembers).toContain('merge');
+    expect(result.results[0].usage?.usedMembers).toContain('clone');
+    expect(result.results[0].usage?.usedMembers).not.toContain('template');
+  });
+});
+
 describe('Analyzer - CommonJS Destructuring', () => {
   let tempDir: string;
 

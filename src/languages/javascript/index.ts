@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { BaseLanguageAdapter } from '../base.js';
-import { parseSource, type ImportInfo } from './parser.js';
+import { parseSource, findNamespaceUsages, type ImportInfo } from './parser.js';
 import { matchesComponent, extractUsedMembers, getPrimaryImportStyle } from './detector.js';
 import { resolveReexportChains, type ReexportChain } from './reexport.js';
 import type { Component, ComponentResult, SupportedLanguage, UsageInfo, CodeLocation, AnalysisWarning } from '../../types.js';
@@ -46,7 +46,7 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
     }
 
     // Parse all files and collect imports
-    const allImports: Array<{ file: string; imports: ImportInfo[] }> = [];
+    const allImports: Array<{ file: string; imports: ImportInfo[]; source: string }> = [];
     // Track re-exported modules and their warnings
     const reexportedModules = new Map<string, { chains: ReexportChain[]; sourceFile: string }>();
     const reexportWarnings: AnalysisWarning[] = [];
@@ -56,7 +56,7 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
         const content = await readFile(file, 'utf-8');
         const imports = parseSource(content, file);
         if (imports.length > 0) {
-          allImports.push({ file, imports });
+          allImports.push({ file, imports, source: content });
           
           // Resolve re-export chains for relative imports
           const reexportResult = await resolveReexportChains(file, imports);
@@ -115,17 +115,17 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
    */
   private analyzeComponent(
     component: Component,
-    allImports: Array<{ file: string; imports: ImportInfo[] }>,
+    allImports: Array<{ file: string; imports: ImportInfo[]; source: string }>,
     reexportedModules: Map<string, { chains: ReexportChain[]; sourceFile: string }> = new Map(),
     additionalWarnings: AnalysisWarning[] = []
   ): ComponentResult {
-    const matchingImports: Array<{ file: string; import: ImportInfo }> = [];
+    const matchingImports: Array<{ file: string; import: ImportInfo; source: string }> = [];
 
     // Find all imports that match this component
-    for (const { file, imports } of allImports) {
+    for (const { file, imports, source } of allImports) {
       for (const imp of imports) {
         if (matchesComponent(imp, component)) {
-          matchingImports.push({ file, import: imp });
+          matchingImports.push({ file, import: imp, source });
         }
       }
     }
@@ -168,8 +168,25 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
     // Collect locations and usage info
     const locations: CodeLocation[] = matchingImports.map(m => m.import.location);
     const allMatchedImports = matchingImports.map(m => m.import);
-    const usedMembers = extractUsedMembers(allMatchedImports);
+    let usedMembers = extractUsedMembers(allMatchedImports);
     const importStyle = getPrimaryImportStyle(allMatchedImports);
+
+    // For namespace/default imports, track property accesses to determine used members
+    const namespaceImports = matchingImports.filter(
+      m => (m.import.isNamespaceImport || m.import.isDefaultImport) && m.import.localName
+    );
+    
+    if (namespaceImports.length > 0) {
+      const localNames = namespaceImports
+        .map(m => m.import.localName)
+        .filter((n): n is string => !!n);
+      
+      // Find property accesses like _.template(), _.merge()
+      for (const { source, file } of namespaceImports) {
+        const namespaceUsages = findNamespaceUsages(source, localNames, file);
+        usedMembers = [...new Set([...usedMembers, ...namespaceUsages])];
+      }
+    }
 
     const usage: UsageInfo = {
       importStyle,

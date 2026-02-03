@@ -215,6 +215,52 @@ export function parseSource(source: string, fileName: string = 'file.ts'): Impor
 }
 
 /**
+ * Find property accesses on namespace/default imports
+ * E.g., `import * as _ from 'lodash'` followed by `_.template()` -> returns ['template']
+ */
+export function findNamespaceUsages(source: string, localNames: string[], fileName: string = 'file.ts'): string[] {
+  const usedMembers: Set<string> = new Set();
+  
+  const sourceFile = ts.createSourceFile(
+    fileName,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS
+  );
+
+  function visit(node: ts.Node): void {
+    // Look for property access: _.template, _.merge, etc.
+    if (ts.isPropertyAccessExpression(node)) {
+      const obj = node.expression;
+      const prop = node.name;
+      
+      // Check if the object is one of our namespace identifiers
+      if (ts.isIdentifier(obj) && localNames.includes(obj.text)) {
+        usedMembers.add(prop.text);
+      }
+    }
+    
+    // Look for element access: _['template'], _["merge"]
+    if (ts.isElementAccessExpression(node)) {
+      const obj = node.expression;
+      const arg = node.argumentExpression;
+      
+      if (ts.isIdentifier(obj) && localNames.includes(obj.text)) {
+        if (ts.isStringLiteral(arg)) {
+          usedMembers.add(arg.text);
+        }
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return [...usedMembers];
+}
+
+/**
  * Find usages of an identifier in source code
  */
 export function findUsages(source: string, identifiers: string[], fileName: string = 'file.ts'): UsageInfo[] {

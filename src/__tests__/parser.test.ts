@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { parseSource } from '../languages/javascript/parser.js';
+import { parseSource, findNamespaceUsages } from '../languages/javascript/parser.js';
 
 describe('ESM imports', () => {
   it('parses default import', () => {
@@ -151,6 +151,69 @@ describe('Mixed patterns', () => {
     
     expect(imports).toHaveLength(4);
     expect(imports.map(i => i.importStyle)).toEqual(['esm', 'commonjs', 'commonjs', 'dynamic']);
+  });
+});
+
+describe('Namespace usage tracking', () => {
+  it('finds property accesses on namespace import', () => {
+    const source = `
+      import * as _ from 'lodash';
+      const result = _.merge({}, {});
+      const tmpl = _.template('<%= name %>');
+    `;
+    const usages = findNamespaceUsages(source, ['_']);
+    
+    expect(usages).toContain('merge');
+    expect(usages).toContain('template');
+  });
+
+  it('finds property accesses on default import', () => {
+    const source = `
+      import lodash from 'lodash';
+      lodash.clone({});
+      lodash.cloneDeep({});
+    `;
+    const usages = findNamespaceUsages(source, ['lodash']);
+    
+    expect(usages).toContain('clone');
+    expect(usages).toContain('cloneDeep');
+  });
+
+  it('handles element access syntax', () => {
+    const source = `
+      import * as utils from 'utils';
+      utils['dynamicMethod']();
+      utils["anotherMethod"]();
+    `;
+    const usages = findNamespaceUsages(source, ['utils']);
+    
+    expect(usages).toContain('dynamicMethod');
+    expect(usages).toContain('anotherMethod');
+  });
+
+  it('ignores unrelated identifiers', () => {
+    const source = `
+      import * as _ from 'lodash';
+      import * as other from 'other';
+      _.merge({}, {});
+      other.something();
+    `;
+    const usages = findNamespaceUsages(source, ['_']);
+    
+    expect(usages).toContain('merge');
+    expect(usages).not.toContain('something');
+  });
+
+  it('handles CommonJS namespace-like usage', () => {
+    const source = `
+      const _ = require('lodash');
+      _.template('<%= x %>');
+      _.merge({}, {});
+    `;
+    const usages = findNamespaceUsages(source, ['_']);
+    
+    expect(usages).toContain('template');
+    expect(usages).toContain('merge');
   });
 });
 

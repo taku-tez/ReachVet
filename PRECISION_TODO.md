@@ -39,12 +39,17 @@ Status: ✅ Completed (2026-02-03 21:11)
 - traceReexports() - 再帰的にre-exportチェーンを解決
 - 24 tests passing
 
-## Batch 4: Namespace Import解析 🟡 MED
-- `import * as _` の後の `_.template()` 追跡
-- PropertyAccessExpression 解析
-- 使用関数の特定
+## Batch 4: Namespace Import解析 🟡 MED ✅ DONE
+- `import * as _` の後の `_.template()` 追跡 ✅
+- PropertyAccessExpression 解析 ✅
+- ElementAccessExpression 解析 (`_['template']`) ✅
+- 使用関数の特定 ✅
 
-Status: ⬜ Not started
+Status: ✅ Completed (2026-02-03 21:14)
+- New function: findNamespaceUsages() in parser.ts
+- Tracks _.merge(), _.template(), _['dynamic'] patterns
+- Integrated into analyzeComponent for accurate vulnerability detection
+- 31 tests passing
 
 ## Batch 5: テストカバレッジ強化
 - 各パターンのユニットテスト
