@@ -114,6 +114,87 @@ describe('Analyzer - Warning System', () => {
   });
 });
 
+describe('Analyzer - Re-export Chain', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'reachvet-reexport-'));
+    
+    await writeFile(
+      join(tempDir, 'package.json'),
+      JSON.stringify({ name: 'test-reexport', version: '1.0.0' })
+    );
+
+    await mkdir(join(tempDir, 'src'));
+    await mkdir(join(tempDir, 'src', 'utils'));
+  });
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('detects imports through barrel file', async () => {
+    // Create barrel file
+    await writeFile(
+      join(tempDir, 'src', 'utils', 'index.ts'),
+      `export { merge, clone } from 'lodash';`
+    );
+
+    // Create main file using barrel
+    await writeFile(
+      join(tempDir, 'src', 'main.ts'),
+      `import { merge } from './utils';
+       export const result = merge({}, {});`
+    );
+
+    const components: Component[] = [
+      { name: 'lodash', version: '4.17.21' }
+    ];
+
+    const result = await quickAnalyze(tempDir, components);
+    
+    // Should detect lodash is reachable (directly from barrel file export)
+    // The barrel file itself has `export { merge } from 'lodash'` which is a direct lodash import
+    expect(result.results[0].status).toBe('reachable');
+  });
+
+  it('handles nested re-exports', async () => {
+    // Level 1 barrel
+    await writeFile(
+      join(tempDir, 'src', 'utils', 'lodash.ts'),
+      `export { template } from 'lodash';`
+    );
+
+    // Level 2 barrel
+    await writeFile(
+      join(tempDir, 'src', 'utils', 'index.ts'),
+      `export { template } from './lodash';`
+    );
+
+    // Main file
+    await writeFile(
+      join(tempDir, 'src', 'app.ts'),
+      `import { template } from './utils';
+       export const render = template('<%= name %>');`
+    );
+
+    const components: Component[] = [
+      { 
+        name: 'lodash', 
+        version: '4.17.20',
+        vulnerabilities: [{
+          id: 'CVE-2021-23337',
+          affectedFunctions: ['template']
+        }]
+      }
+    ];
+
+    const result = await quickAnalyze(tempDir, components);
+    
+    expect(result.results[0].status).toBe('reachable');
+  });
+});
+
 describe('Analyzer - CommonJS Destructuring', () => {
   let tempDir: string;
 

@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { BaseLanguageAdapter } from '../base.js';
 import { parseSource, type ImportInfo } from './parser.js';
 import { matchesComponent, extractUsedMembers, getPrimaryImportStyle } from './detector.js';
+import { resolveReexportChains, type ReexportChain } from './reexport.js';
 import type { Component, ComponentResult, SupportedLanguage, UsageInfo, CodeLocation, AnalysisWarning } from '../../types.js';
 
 export class JavaScriptAdapter extends BaseLanguageAdapter {
@@ -46,6 +47,9 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
 
     // Parse all files and collect imports
     const allImports: Array<{ file: string; imports: ImportInfo[] }> = [];
+    // Track re-exported modules and their warnings
+    const reexportedModules = new Map<string, { chains: ReexportChain[]; sourceFile: string }>();
+    const reexportWarnings: AnalysisWarning[] = [];
     
     for (const file of files) {
       try {
@@ -53,6 +57,34 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
         const imports = parseSource(content, file);
         if (imports.length > 0) {
           allImports.push({ file, imports });
+          
+          // Resolve re-export chains for relative imports
+          const reexportResult = await resolveReexportChains(file, imports);
+          
+          // Collect resolved chains
+          for (const [, chains] of reexportResult.chains) {
+            for (const chain of chains) {
+              const existing = reexportedModules.get(chain.originalModule);
+              if (existing) {
+                existing.chains.push(chain);
+              } else {
+                reexportedModules.set(chain.originalModule, { 
+                  chains: [chain], 
+                  sourceFile: file 
+                });
+              }
+            }
+          }
+          
+          // Collect warnings
+          for (const warning of reexportResult.warnings) {
+            reexportWarnings.push({
+              code: warning.code,
+              message: warning.message,
+              location: warning.location,
+              severity: 'warning'
+            });
+          }
         }
       } catch {
         // Skip files that can't be parsed
@@ -63,7 +95,15 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
     const results: ComponentResult[] = [];
 
     for (const component of components) {
-      const result = this.analyzeComponent(component, allImports);
+      const result = this.analyzeComponent(
+        component, 
+        allImports, 
+        reexportedModules,
+        reexportWarnings.filter(w => 
+          w.message.includes(component.name) || 
+          w.code === 'barrel_file'
+        )
+      );
       results.push(result);
     }
 
@@ -75,7 +115,9 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
    */
   private analyzeComponent(
     component: Component,
-    allImports: Array<{ file: string; imports: ImportInfo[] }>
+    allImports: Array<{ file: string; imports: ImportInfo[] }>,
+    reexportedModules: Map<string, { chains: ReexportChain[]; sourceFile: string }> = new Map(),
+    additionalWarnings: AnalysisWarning[] = []
   ): ComponentResult {
     const matchingImports: Array<{ file: string; import: ImportInfo }> = [];
 
@@ -88,9 +130,39 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
       }
     }
 
-    // Not found anywhere
-    if (matchingImports.length === 0) {
+    // Check if component is accessed via re-export chain
+    const reexportInfo = reexportedModules.get(component.name);
+    const isReexported = !!reexportInfo;
+
+    // Not found anywhere (direct or via re-export)
+    if (matchingImports.length === 0 && !isReexported) {
       return this.notReachable(component, ['Not imported in any source file']);
+    }
+
+    // If only found via re-export, create synthetic import info
+    if (matchingImports.length === 0 && isReexported) {
+      const chainInfo = reexportInfo.chains[0];
+      const indirectWarning: AnalysisWarning = {
+        code: 'barrel_file',
+        message: `Accessed via barrel file: ${chainInfo.chain.join(' -> ')}`,
+        severity: 'info'
+      };
+      
+      return this.reachable(
+        component,
+        {
+          importStyle: 'esm',
+          usedMembers: chainInfo.exportedNames.length > 0 ? chainInfo.exportedNames : undefined,
+          locations: [{
+            file: reexportInfo.sourceFile,
+            line: 1,
+            snippet: `Re-exported through ${chainInfo.chain.length} file(s)`
+          }]
+        },
+        'medium',
+        [`Imported indirectly via barrel file (depth: ${chainInfo.depth})`],
+        [indirectWarning, ...additionalWarnings]
+      );
     }
 
     // Collect locations and usage info

@@ -26,12 +26,18 @@ Status: ✅ Completed (2026-02-03 19:15)
 - javascript/index.ts: generateWarnings() method
 - 22 unit tests passing
 
-## Batch 3: Re-export Chain追跡 🟡 MED
-- `index.ts` からの再エクスポートを追跡
-- 最大depth設定（循環参照対策、default: 5）
-- barrel files のフルチェーン解決
+## Batch 3: Re-export Chain追跡 🟡 MED ✅ DONE
+- `index.ts` からの再エクスポートを追跡 ✅
+- 最大depth設定（循環参照対策、default: 5） ✅
+- barrel files のフルチェーン解決 ✅
+- 循環参照検出 ✅
+- 警告: barrel_file, circular_reexport, max_depth_reached ✅
 
-Status: ⬜ Not started
+Status: ✅ Completed (2026-02-03 21:11)
+- New file: src/languages/javascript/reexport.ts
+- resolveReexportChains() - 相対パスimportを追跡
+- traceReexports() - 再帰的にre-exportチェーンを解決
+- 24 tests passing
 
 ## Batch 4: Namespace Import解析 🟡 MED
 - `import * as _` の後の `_.template()` 追跡
