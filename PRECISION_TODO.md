@@ -253,26 +253,82 @@ Status: ✅ Completed (2026-02-04 07:27)
 - 27 new tests (html-markdown.test.ts)
 - Total: 361 tests passing
 
-## Batch 17: Swift Language Support 🟡 MED
-- Swift import statements
-- Package.swift parsing
-- SPM (Swift Package Manager) ecosystem
+## Batch 17: Swift Language Support ✅ DONE (2026-02-04 07:38)
+- Swift import statements ✅
+- Package.swift parsing ✅
+- SPM/CocoaPods/Carthage support ✅
 
-## Batch 18: Kotlin Language Support 🟡 MED
-- Kotlin import statements
-- build.gradle.kts parsing (Kotlin DSL)
-- Gradle dependencies
+## Batch 18: Kotlin Language Support ✅ DONE (2026-02-04 07:43)
+- Kotlin import statements ✅
+- build.gradle.kts parsing (Kotlin DSL) ✅
+- Gradle dependencies ✅
 
-## Batch 19: Scala Language Support 🟢 LOW
-- Scala import statements
-- build.sbt parsing
-- SBT dependencies
+## Batch 19: Scala Language Support ✅ DONE (2026-02-04 07:45)
+- Scala import statements ✅
+- build.sbt parsing ✅
+- SBT dependencies ✅
+
+## Batch 20: Elixir Language Support ✅ DONE (2026-02-04 07:48)
+- Elixir alias/import/require/use ✅
+- Phoenix/Ecto frameworks ✅
+- Mix/Hex dependency management ✅
+
+## Batch 21: Dart/Flutter Language Support ✅ DONE (2026-02-04 07:50)
+- Dart import/export statements ✅
+- pubspec.yaml parsing ✅
+- Flutter package ecosystem ✅
+
+## Batch 22: Perl Language Support ✅ DONE (2026-02-04 07:53)
+- Perl use/require statements ✅
+- cpanfile/Makefile.PL parsing ✅
+- CPAN package ecosystem ✅
+
+## Batch 23: Dependency Graph Visualization ✅ DONE (2026-02-04 08:37)
+- Mermaid format output ✅
+- DOT (Graphviz) format output ✅
+- CLI: --graph [file], --dot [file] options ✅
+- Group by ecosystem ✅
+- Vulnerable-only filter ✅
+- Legend and direction customization ✅
+- 20 new tests ✅
+
+---
+
+## 🚀 Phase 4: Future Improvements (Planned)
+
+## Batch 24: Haskell Language Support 🟢 LOW
+- Haskell import statements
+- .cabal file parsing
+- stack.yaml support
+- Hackage package ecosystem
+
+## Batch 25: Clojure Language Support 🟢 LOW
+- Clojure ns/require/import/use
+- deps.edn parsing
+- Leiningen project.clj support
+- Clojars package ecosystem
+
+## Batch 26: --watch Mode 🟡 MED
+- File watcher for continuous analysis
+- Incremental re-analysis on change
+- Terminal UI with live updates
+
+## Batch 27: GitHub Actions Integration 🟡 MED
+- Standalone GitHub Action
+- PR comment with analysis summary
+- Check run annotations
 
 ---
 
 ## Progress Log
 
 ### 2026-02-04
+- 08:37 Batch 23 依存関係グラフ可視化完了 - 20 new tests, 554 total
+  - Mermaid/DOT output formats for dependency visualization
+  - CLI: --graph [file], --dot [file] options
+  - Group by ecosystem, vulnerable-only filter
+  - Legend and direction customization
+  - TypeScript fixes for adapter method visibility
 - 07:27 Batch 14 HTML/Markdownレポート完了 - 27 new tests, 361 total
   - HTML: Standalone report with charts, dark mode, interactive filtering
   - Markdown: PR summaries, compact mode, vulnerability highlighting

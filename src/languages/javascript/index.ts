@@ -205,7 +205,7 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
     }
 
     // If only found via re-export, create synthetic import info
-    if (matchingImports.length === 0 && isReexported && reexportInfo) {
+    if (matchingImports.length === 0 && reexportInfo) {
       const chainInfo = reexportInfo.chains[0];
       const indirectWarning: AnalysisWarning = {
         code: 'barrel_file',

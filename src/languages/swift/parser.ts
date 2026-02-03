@@ -236,7 +236,7 @@ export function findTypeUsages(source: string, typeNames: string[], fileName: st
       usages.push({
         identifier: match[1],
         method: method,
-        isStatic: line.includes('.shared') || (method !== undefined && !/^[a-z]/.test(method)),
+        isStatic: Boolean(line.includes('.shared') || (method !== undefined && method !== '' && !/^[a-z]/.test(method))),
         location: {
           file: fileName,
           line: lineNum,
