@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { parseSource, findNamespaceUsages } from '../languages/javascript/parser.js';
+import { parseSource, findNamespaceUsages, checkImportUsage } from '../languages/javascript/parser.js';
 
 describe('ESM imports', () => {
   it('parses default import', () => {
@@ -297,5 +297,125 @@ describe('Edge cases', () => {
     expect(imports).toHaveLength(2);
     expect(imports[0].moduleName).toBe('@org/package');
     expect(imports[1].moduleName).toBe('@scope/module/subpath');
+  });
+});
+
+describe('Type-only imports', () => {
+  it('detects type-only import declaration', () => {
+    const source = `import type { User } from './types';`;
+    const imports = parseSource(source);
+    
+    expect(imports).toHaveLength(1);
+    expect(imports[0].isTypeOnly).toBe(true);
+    expect(imports[0].namedImports).toEqual(['User']);
+  });
+
+  it('detects inline type import', () => {
+    const source = `import { type User, type Post } from './types';`;
+    const imports = parseSource(source);
+    
+    expect(imports).toHaveLength(1);
+    expect(imports[0].isTypeOnly).toBe(true);
+  });
+
+  it('mixed type and value imports are not type-only', () => {
+    const source = `import { type User, createUser } from './user';`;
+    const imports = parseSource(source);
+    
+    expect(imports).toHaveLength(1);
+    expect(imports[0].isTypeOnly).toBeFalsy();
+  });
+});
+
+describe('Side-effect imports', () => {
+  it('detects side-effect only import', () => {
+    const source = `import 'reflect-metadata';`;
+    const imports = parseSource(source);
+    
+    expect(imports).toHaveLength(1);
+    expect(imports[0].isSideEffectOnly).toBe(true);
+    expect(imports[0].moduleName).toBe('reflect-metadata');
+  });
+
+  it('detects multiple side-effect imports', () => {
+    const source = `
+      import 'core-js/stable';
+      import 'regenerator-runtime/runtime';
+    `;
+    const imports = parseSource(source);
+    
+    expect(imports).toHaveLength(2);
+    expect(imports[0].isSideEffectOnly).toBe(true);
+    expect(imports[1].isSideEffectOnly).toBe(true);
+  });
+});
+
+describe('Import aliases', () => {
+  it('detects aliased named import', () => {
+    const source = `import { merge as m, clone as c } from 'lodash';`;
+    const imports = parseSource(source);
+    
+    expect(imports).toHaveLength(1);
+    expect(imports[0].namedImports).toEqual(['merge', 'clone']);
+    expect(imports[0].aliases).toBeDefined();
+    expect(imports[0].aliases?.get('merge')).toBe('m');
+    expect(imports[0].aliases?.get('clone')).toBe('c');
+  });
+
+  it('handles mixed aliased and non-aliased imports', () => {
+    const source = `import { merge as m, debounce } from 'lodash';`;
+    const imports = parseSource(source);
+    
+    expect(imports).toHaveLength(1);
+    expect(imports[0].namedImports).toEqual(['merge', 'debounce']);
+    expect(imports[0].aliases?.get('merge')).toBe('m');
+    expect(imports[0].aliases?.has('debounce')).toBeFalsy();
+  });
+});
+
+describe('Import usage checking', () => {
+  it('detects used named imports', () => {
+    const source = `
+      import { merge, clone } from 'lodash';
+      const result = merge({}, {});
+    `;
+    const imports = parseSource(source);
+    const usageMap = checkImportUsage(source, imports[0]);
+    
+    expect(usageMap.get('merge')).toBeGreaterThan(0);
+    expect(usageMap.get('clone')).toBe(0);
+  });
+
+  it('detects aliased import usage', () => {
+    const source = `
+      import { merge as m } from 'lodash';
+      const result = m({}, {});
+    `;
+    const imports = parseSource(source);
+    const usageMap = checkImportUsage(source, imports[0]);
+    
+    expect(usageMap.get('m')).toBeGreaterThan(0);
+  });
+
+  it('detects namespace import usage', () => {
+    const source = `
+      import * as _ from 'lodash';
+      const result = _.merge({}, {});
+    `;
+    const imports = parseSource(source);
+    const usageMap = checkImportUsage(source, imports[0]);
+    
+    expect(usageMap.get('_')).toBeGreaterThan(0);
+  });
+
+  it('detects unused default import', () => {
+    const source = `
+      import lodash from 'lodash';
+      // lodash not used
+    `;
+    const imports = parseSource(source);
+    const usageMap = checkImportUsage(source, imports[0]);
+    
+    expect(usageMap.get('lodash')).toBe(0);
   });
 });

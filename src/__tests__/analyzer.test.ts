@@ -442,6 +442,106 @@ describe('Analyzer - Class Tests', () => {
   });
 });
 
+describe('Analyzer - TypeScript Precision', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'reachvet-ts-'));
+    await writeFile(
+      join(tempDir, 'package.json'),
+      JSON.stringify({ name: 'test-ts-precision', version: '1.0.0' })
+    );
+    await mkdir(join(tempDir, 'src'));
+  });
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('should detect type-only imports as not reachable', async () => {
+    await writeFile(join(tempDir, 'src', 'types.ts'), `
+      import type { User } from 'user-types';
+      
+      export function greet(user: User) {
+        return \`Hello, \${user.name}\`;
+      }
+    `);
+
+    const components: Component[] = [
+      { name: 'user-types', version: '1.0.0' }
+    ];
+
+    const result = await quickAnalyze(tempDir, components);
+    
+    expect(result.results[0].status).toBe('not_reachable');
+    expect(result.results[0].notes?.[0]).toContain('type-only');
+  });
+
+  it('should detect side-effect imports as reachable', async () => {
+    await writeFile(join(tempDir, 'src', 'app.ts'), `
+      import 'reflect-metadata';
+      
+      class MyClass {}
+    `);
+
+    const components: Component[] = [
+      { name: 'reflect-metadata', version: '0.1.0' }
+    ];
+
+    const result = await quickAnalyze(tempDir, components);
+    
+    expect(result.results[0].status).toBe('reachable');
+    expect(result.results[0].notes?.[0]).toContain('Side-effect');
+  });
+
+  it('should track aliased imports correctly', async () => {
+    await writeFile(join(tempDir, 'src', 'utils.ts'), `
+      import { merge as m } from 'lodash';
+      
+      export const config = m({}, { debug: true });
+    `);
+
+    const components: Component[] = [
+      { 
+        name: 'lodash', 
+        version: '4.17.21',
+        vulnerabilities: [{
+          id: 'CVE-2021-23337',
+          affectedFunctions: ['template', 'merge']
+        }]
+      }
+    ];
+
+    const result = await quickAnalyze(tempDir, components);
+    
+    expect(result.results[0].status).toBe('reachable');
+    expect(result.results[0].confidence).toBe('high');
+    expect(result.results[0].usage?.usedMembers).toContain('merge');
+  });
+
+  it('should detect unused imports with warning', async () => {
+    await writeFile(join(tempDir, 'src', 'partial.ts'), `
+      import { merge, clone, template } from 'lodash';
+      
+      // Only using merge
+      export const result = merge({}, {});
+    `);
+
+    const components: Component[] = [
+      { name: 'lodash', version: '4.17.21' }
+    ];
+
+    const result = await quickAnalyze(tempDir, components);
+    
+    expect(result.results[0].status).toBe('reachable');
+    // Should have warning about unused imports
+    const unusedWarning = result.results[0].warnings?.find(w => w.code === 'unused_import');
+    expect(unusedWarning).toBeDefined();
+    expect(unusedWarning?.message).toContain('clone');
+    expect(unusedWarning?.message).toContain('template');
+  });
+});
+
 describe('Analyzer - OSV Integration', () => {
   let tempDir: string;
 

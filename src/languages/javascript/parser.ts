@@ -18,6 +18,12 @@ export interface ImportInfo {
   location: CodeLocation;
   /** True if import is inside try/catch, if statement, or other conditional */
   isConditional?: boolean;
+  /** True if import type only (won't exist at runtime) */
+  isTypeOnly?: boolean;
+  /** True if side-effect only import: import 'polyfill' */
+  isSideEffectOnly?: boolean;
+  /** Map of original name -> local alias: import { merge as m } */
+  aliases?: Map<string, string>;
 }
 
 export interface UsageInfo {
@@ -106,26 +112,61 @@ export function parseSource(source: string, fileName: string = 'file.ts'): Impor
           location: getLocation(node)
         };
 
-        if (importClause) {
-          // Default import: import foo from 'module'
-          if (importClause.name) {
-            info.isDefaultImport = true;
-            info.localName = importClause.name.text;
-          }
+        // Check for side-effect only import: import 'polyfill'
+        if (!importClause) {
+          info.isSideEffectOnly = true;
+          imports.push(info);
+          return;
+        }
 
-          // Named/namespace imports
-          const namedBindings = importClause.namedBindings;
-          if (namedBindings) {
-            // Namespace: import * as foo from 'module'
-            if (ts.isNamespaceImport(namedBindings)) {
-              info.isNamespaceImport = true;
-              info.localName = namedBindings.name.text;
-            }
-            // Named: import { a, b } from 'module'
-            else if (ts.isNamedImports(namedBindings)) {
-              for (const element of namedBindings.elements) {
-                info.namedImports.push(element.name.text);
+        // Check for type-only import: import type { X } from 'module'
+        if (importClause.isTypeOnly) {
+          info.isTypeOnly = true;
+        }
+
+        // Default import: import foo from 'module'
+        if (importClause.name) {
+          info.isDefaultImport = true;
+          info.localName = importClause.name.text;
+        }
+
+        // Named/namespace imports
+        const namedBindings = importClause.namedBindings;
+        if (namedBindings) {
+          // Namespace: import * as foo from 'module'
+          if (ts.isNamespaceImport(namedBindings)) {
+            info.isNamespaceImport = true;
+            info.localName = namedBindings.name.text;
+          }
+          // Named: import { a, b } from 'module'
+          else if (ts.isNamedImports(namedBindings)) {
+            const aliases = new Map<string, string>();
+            let hasTypeOnlyElements = true; // Track if ALL elements are type-only
+            
+            for (const element of namedBindings.elements) {
+              const localName = element.name.text;
+              // Check for alias: import { merge as m }
+              const originalName = element.propertyName?.text ?? localName;
+              
+              info.namedImports.push(originalName);
+              
+              if (originalName !== localName) {
+                aliases.set(originalName, localName);
               }
+              
+              // Check if this specific import is type-only: import { type X }
+              if (!element.isTypeOnly) {
+                hasTypeOnlyElements = false;
+              }
+            }
+            
+            if (aliases.size > 0) {
+              info.aliases = aliases;
+            }
+            
+            // If ALL named imports are type-only, mark the whole import as type-only
+            if (hasTypeOnlyElements && namedBindings.elements.length > 0) {
+              info.isTypeOnly = true;
             }
           }
         }
@@ -293,6 +334,72 @@ export function findNamespaceUsages(source: string, localNames: string[], fileNa
 
   visit(sourceFile);
   return [...usedMembers];
+}
+
+/**
+ * Check if imported identifiers are actually used in the source code
+ * Returns map of identifier -> usage count
+ */
+export function checkImportUsage(
+  source: string, 
+  importInfo: ImportInfo, 
+  fileName: string = 'file.ts'
+): Map<string, number> {
+  const usageCount = new Map<string, number>();
+  
+  const sourceFile = ts.createSourceFile(
+    fileName,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS
+  );
+
+  // Collect identifiers to check
+  const identifiersToCheck = new Set<string>();
+  
+  if (importInfo.localName) {
+    identifiersToCheck.add(importInfo.localName);
+  }
+  
+  // For named imports, check both original names and aliases
+  for (const name of importInfo.namedImports) {
+    const alias = importInfo.aliases?.get(name);
+    identifiersToCheck.add(alias ?? name);
+  }
+  
+  // Initialize counts
+  for (const id of identifiersToCheck) {
+    usageCount.set(id, 0);
+  }
+
+  function isImportDeclaration(node: ts.Node): boolean {
+    return ts.isImportDeclaration(node) || 
+           ts.isImportSpecifier(node) ||
+           ts.isImportClause(node);
+  }
+
+  function visit(node: ts.Node): void {
+    if (ts.isIdentifier(node)) {
+      const name = node.text;
+      if (identifiersToCheck.has(name)) {
+        // Skip if this identifier is part of the import declaration itself
+        let parent = node.parent;
+        while (parent) {
+          if (isImportDeclaration(parent)) {
+            return; // Don't count import declarations as usage
+          }
+          parent = parent.parent;
+        }
+        
+        usageCount.set(name, (usageCount.get(name) ?? 0) + 1);
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return usageCount;
 }
 
 /**

@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { BaseLanguageAdapter } from '../base.js';
-import { parseSource, findNamespaceUsages, type ImportInfo } from './parser.js';
+import { parseSource, findNamespaceUsages, checkImportUsage, type ImportInfo } from './parser.js';
 import { matchesComponent, extractUsedMembers, getPrimaryImportStyle } from './detector.js';
 import { resolveReexportChains, type ReexportChain } from './reexport.js';
 import type { Component, ComponentResult, SupportedLanguage, UsageInfo, CodeLocation, AnalysisWarning } from '../../types.js';
@@ -120,12 +120,24 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
     additionalWarnings: AnalysisWarning[] = []
   ): ComponentResult {
     const matchingImports: Array<{ file: string; import: ImportInfo; source: string }> = [];
+    const typeOnlyImports: Array<{ file: string; import: ImportInfo }> = [];
+    const sideEffectImports: Array<{ file: string; import: ImportInfo }> = [];
 
     // Find all imports that match this component
     for (const { file, imports, source } of allImports) {
       for (const imp of imports) {
         if (matchesComponent(imp, component)) {
-          matchingImports.push({ file, import: imp, source });
+          // Separate type-only imports (they don't exist at runtime)
+          if (imp.isTypeOnly) {
+            typeOnlyImports.push({ file, import: imp });
+          }
+          // Separate side-effect only imports
+          else if (imp.isSideEffectOnly) {
+            sideEffectImports.push({ file, import: imp });
+          }
+          else {
+            matchingImports.push({ file, import: imp, source });
+          }
         }
       }
     }
@@ -133,6 +145,41 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
     // Check if component is accessed via re-export chain
     const reexportInfo = reexportedModules.get(component.name);
     const isReexported = !!reexportInfo;
+
+    // Handle type-only imports: they don't exist at runtime
+    if (matchingImports.length === 0 && typeOnlyImports.length > 0 && !isReexported) {
+      const locations = typeOnlyImports.map(t => t.import.location);
+      return this.notReachable(
+        component,
+        [`Only type-only imports found (${typeOnlyImports.length}) - no runtime dependency`],
+        [{
+          code: 'type_only_import',
+          message: 'Type-only imports are erased at compile time and do not create runtime dependencies',
+          location: locations[0],
+          severity: 'info'
+        }]
+      );
+    }
+
+    // Handle side-effect only imports: import 'module'
+    if (matchingImports.length === 0 && sideEffectImports.length > 0 && !isReexported) {
+      const locations = sideEffectImports.map(t => t.import.location);
+      return this.reachable(
+        component,
+        {
+          importStyle: 'esm',
+          locations
+        },
+        'high',
+        [`Side-effect import found - module is loaded but no exports are used`],
+        [{
+          code: 'side_effect_import',
+          message: 'Side-effect import loads the module for its side effects (polyfills, etc.)',
+          location: locations[0],
+          severity: 'info'
+        }]
+      );
+    }
 
     // Not found anywhere (direct or via re-export)
     if (matchingImports.length === 0 && !isReexported) {
@@ -188,6 +235,27 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
       }
     }
 
+    // Check for unused imports (imported but never used in code)
+    let hasUnusedImport = false;
+    const unusedMembers: string[] = [];
+    
+    for (const { file, import: imp, source } of matchingImports) {
+      const usageMap = checkImportUsage(source, imp, file);
+      
+      for (const [identifier, count] of usageMap) {
+        if (count === 0) {
+          hasUnusedImport = true;
+          // Find the original name for aliased imports
+          const originalName = imp.aliases 
+            ? [...imp.aliases.entries()].find(([, alias]) => alias === identifier)?.[0] ?? identifier
+            : identifier;
+          if (!unusedMembers.includes(originalName)) {
+            unusedMembers.push(originalName);
+          }
+        }
+      }
+    }
+
     const usage: UsageInfo = {
       importStyle,
       usedMembers: usedMembers.length > 0 ? usedMembers : undefined,
@@ -195,7 +263,7 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
     };
 
     // Generate warnings
-    const warnings = this.generateWarnings(allMatchedImports);
+    const warnings = this.generateWarnings(allMatchedImports, hasUnusedImport, unusedMembers);
 
     // Check if specific vulnerable functions are used
     const vulnFunctions = component.vulnerabilities?.flatMap(v => v.affectedFunctions ?? []) ?? [];
@@ -260,7 +328,11 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
   /**
    * Generate warnings for analysis limitations
    */
-  private generateWarnings(imports: ImportInfo[]): AnalysisWarning[] {
+  private generateWarnings(
+    imports: ImportInfo[],
+    hasUnusedImport: boolean = false,
+    unusedMembers: string[] = []
+  ): AnalysisWarning[] {
     const warnings: AnalysisWarning[] = [];
 
     // Check for dynamic imports
@@ -281,6 +353,15 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
         code: 'indirect_usage',
         message: 'Conditional import detected (try/catch or if statement) - may not always execute',
         location: imp.location,
+        severity: 'info'
+      });
+    }
+
+    // Check for unused imports
+    if (hasUnusedImport && unusedMembers.length > 0) {
+      warnings.push({
+        code: 'unused_import',
+        message: `Imported but never used: ${unusedMembers.join(', ')}`,
         severity: 'info'
       });
     }
