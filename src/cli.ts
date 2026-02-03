@@ -10,8 +10,9 @@ import { Analyzer } from './core/analyzer.js';
 import { OSVClient } from './osv/index.js';
 import { parseSimpleJson, parseFromStdin, parseSBOM } from './input/index.js';
 import { listSupportedLanguages, detectLanguage } from './languages/index.js';
-import { toSarif } from './output/index.js';
+import { toSarif, generateGraph } from './output/index.js';
 import type { Component, ComponentResult, AnalysisOutput } from './types.js';
+import { writeFile } from 'node:fs/promises';
 
 const VERSION = '0.2.0';
 
@@ -34,6 +35,10 @@ program
   .option('-v, --verbose', 'Show progress')
   .option('--pretty', 'Pretty print JSON output')
   .option('--sarif', 'Output in SARIF format (for GitHub Code Scanning)')
+  .option('--graph [file]', 'Output dependency graph in Mermaid format')
+  .option('--dot [file]', 'Output dependency graph in DOT (Graphviz) format')
+  .option('--graph-direction <dir>', 'Graph direction: TB, LR, BT, RL', 'TB')
+  .option('--vulnerable-only', 'Only show vulnerable/reachable in graph')
   .option('--osv', 'Fetch vulnerability data from OSV.dev')
   .option('--osv-cache <dir>', 'OSV cache directory')
   .option('--osv-ttl <seconds>', 'OSV cache TTL in seconds', parseInt)
@@ -84,7 +89,23 @@ program
       const output = await analyzer.analyze(components);
 
       // Output in selected format
-      if (options.sarif) {
+      if (options.graph !== undefined || options.dot !== undefined) {
+        const format = options.dot !== undefined ? 'dot' : 'mermaid';
+        const graphOutput = generateGraph(output.results, {
+          format,
+          direction: options.graphDirection as 'TB' | 'LR' | 'BT' | 'RL',
+          vulnerableOnly: options.vulnerableOnly,
+        });
+        const filePath = options.dot !== undefined ? options.dot : options.graph;
+        if (typeof filePath === 'string') {
+          await writeFile(filePath, graphOutput, 'utf-8');
+          if (options.verbose) {
+            console.error(chalk.green(`Graph written to ${filePath}`));
+          }
+        } else {
+          console.log(graphOutput);
+        }
+      } else if (options.sarif) {
         const sarif = toSarif(output);
         const json = options.pretty
           ? JSON.stringify(sarif, null, 2)
@@ -121,6 +142,10 @@ program
   .option('-l, --language <lang>', 'Language (javascript, typescript)')
   .option('--json', 'Output as JSON instead')
   .option('--sarif', 'Output in SARIF format (for GitHub Code Scanning)')
+  .option('--graph [file]', 'Output dependency graph in Mermaid format')
+  .option('--dot [file]', 'Output dependency graph in DOT (Graphviz) format')
+  .option('--graph-direction <dir>', 'Graph direction: TB, LR, BT, RL', 'TB')
+  .option('--vulnerable-only', 'Only show vulnerable/reachable in graph')
   .option('--osv', 'Fetch vulnerability data from OSV.dev')
   .option('--osv-cache <dir>', 'OSV cache directory')
   .option('--osv-ttl <seconds>', 'OSV cache TTL in seconds', parseInt)
@@ -155,6 +180,23 @@ program
       });
 
       const output = await analyzer.analyze(components);
+
+      if (options.graph !== undefined || options.dot !== undefined) {
+        const format = options.dot !== undefined ? 'dot' : 'mermaid';
+        const graphOutput = generateGraph(output.results, {
+          format,
+          direction: options.graphDirection as 'TB' | 'LR' | 'BT' | 'RL',
+          vulnerableOnly: options.vulnerableOnly,
+        });
+        const filePath = options.dot !== undefined ? options.dot : options.graph;
+        if (typeof filePath === 'string') {
+          await writeFile(filePath, graphOutput, 'utf-8');
+          console.error(chalk.green(`Graph written to ${filePath}`));
+        } else {
+          console.log(graphOutput);
+        }
+        return;
+      }
 
       if (options.sarif) {
         const sarif = toSarif(output);

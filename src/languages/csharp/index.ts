@@ -14,7 +14,7 @@ export class CSharpAdapter extends BaseLanguageAdapter {
   language: SupportedLanguage = 'csharp';
   fileExtensions = ['.cs'];
 
-  private ignorePatterns = [
+  protected ignorePatterns = [
     '**/bin/**',
     '**/obj/**',
     '**/node_modules/**',
@@ -188,7 +188,7 @@ export class CSharpAdapter extends BaseLanguageAdapter {
     );
   }
 
-  private async findSourceFiles(sourceDir: string): Promise<string[]> {
+  protected async findSourceFiles(sourceDir: string): Promise<string[]> {
     const patterns = this.fileExtensions.map(ext => `**/*${ext}`);
     
     const files = await glob(patterns, {

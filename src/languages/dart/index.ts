@@ -14,7 +14,7 @@ export class DartAdapter extends BaseLanguageAdapter {
   language: SupportedLanguage = 'dart';
   fileExtensions = ['.dart'];
 
-  private ignorePatterns = [
+  protected ignorePatterns = [
     '**/.dart_tool/**',
     '**/build/**',
     '**/*.g.dart',
@@ -152,7 +152,7 @@ export class DartAdapter extends BaseLanguageAdapter {
     );
   }
 
-  private async findSourceFiles(sourceDir: string): Promise<string[]> {
+  protected async findSourceFiles(sourceDir: string): Promise<string[]> {
     const patterns = this.fileExtensions.map(ext => `**/*${ext}`);
     
     const files = await glob(patterns, {

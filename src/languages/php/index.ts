@@ -14,7 +14,7 @@ export class PhpAdapter extends BaseLanguageAdapter {
   language: SupportedLanguage = 'php';
   fileExtensions = ['.php', '.phtml', '.php5', '.php7', '.phps'];
 
-  private ignorePatterns = [
+  protected ignorePatterns = [
     '**/vendor/**',
     '**/node_modules/**',
     '**/cache/**',
@@ -167,7 +167,7 @@ export class PhpAdapter extends BaseLanguageAdapter {
     );
   }
 
-  private async findSourceFiles(sourceDir: string): Promise<string[]> {
+  protected async findSourceFiles(sourceDir: string): Promise<string[]> {
     const patterns = this.fileExtensions.map(ext => `**/*${ext}`);
     
     const files = await glob(patterns, {

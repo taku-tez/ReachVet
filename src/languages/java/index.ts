@@ -74,7 +74,7 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
     await this.parseBuildFiles(sourceDir);
 
     // Parse Java source files
-    await this.parseSourceFiles(sourceDir);
+    await this.parseAllSourceFiles(sourceDir);
 
     // Analyze each component
     const results: ComponentResult[] = [];
@@ -127,7 +127,7 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
   /**
    * Parse all Java source files
    */
-  private async parseSourceFiles(sourceDir: string): Promise<void> {
+  private async parseAllSourceFiles(sourceDir: string): Promise<void> {
     const javaFiles = await this.findJavaFiles(sourceDir);
     
     for (const file of javaFiles) {

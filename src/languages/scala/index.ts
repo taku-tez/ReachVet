@@ -14,7 +14,7 @@ export class ScalaAdapter extends BaseLanguageAdapter {
   language: SupportedLanguage = 'scala';
   fileExtensions = ['.scala', '.sc'];
 
-  private ignorePatterns = [
+  protected ignorePatterns = [
     '**/target/**',
     '**/.bsp/**',
     '**/.metals/**',
@@ -188,7 +188,7 @@ export class ScalaAdapter extends BaseLanguageAdapter {
     );
   }
 
-  private async findSourceFiles(sourceDir: string): Promise<string[]> {
+  protected async findSourceFiles(sourceDir: string): Promise<string[]> {
     const patterns = this.fileExtensions.map(ext => `**/*${ext}`);
     
     const files = await glob(patterns, {

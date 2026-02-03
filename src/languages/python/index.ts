@@ -15,7 +15,7 @@ export class PythonAdapter extends BaseLanguageAdapter {
   language: SupportedLanguage = 'python';
   fileExtensions = ['.py', '.pyw'];
 
-  private ignorePatterns = [
+  protected ignorePatterns = [
     '**/venv/**',
     '**/.venv/**',
     '**/env/**',
@@ -250,7 +250,7 @@ export class PythonAdapter extends BaseLanguageAdapter {
   /**
    * Find all source files
    */
-  private async findSourceFiles(sourceDir: string): Promise<string[]> {
+  protected async findSourceFiles(sourceDir: string): Promise<string[]> {
     const patterns = this.fileExtensions.map(ext => `**/*${ext}`);
     
     const files = await glob(patterns, {

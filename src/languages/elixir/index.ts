@@ -14,7 +14,7 @@ export class ElixirAdapter extends BaseLanguageAdapter {
   language: SupportedLanguage = 'elixir';
   fileExtensions = ['.ex', '.exs'];
 
-  private ignorePatterns = [
+  protected ignorePatterns = [
     '**/_build/**',
     '**/deps/**',
     '**/.elixir_ls/**',
@@ -163,7 +163,7 @@ export class ElixirAdapter extends BaseLanguageAdapter {
     );
   }
 
-  private async findSourceFiles(sourceDir: string): Promise<string[]> {
+  protected async findSourceFiles(sourceDir: string): Promise<string[]> {
     const patterns = this.fileExtensions.map(ext => `**/*${ext}`);
     
     const files = await glob(patterns, {

@@ -16,7 +16,7 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
   language: SupportedLanguage = 'javascript';
   fileExtensions = ['.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx'];
 
-  private ignorePatterns = [
+  protected ignorePatterns = [
     '**/node_modules/**',
     '**/dist/**',
     '**/build/**',
@@ -205,7 +205,7 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
     }
 
     // If only found via re-export, create synthetic import info
-    if (matchingImports.length === 0 && isReexported) {
+    if (matchingImports.length === 0 && isReexported && reexportInfo) {
       const chainInfo = reexportInfo.chains[0];
       const indirectWarning: AnalysisWarning = {
         code: 'barrel_file',
@@ -390,7 +390,7 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
   /**
    * Find all source files
    */
-  private async findSourceFiles(sourceDir: string): Promise<string[]> {
+  protected async findSourceFiles(sourceDir: string): Promise<string[]> {
     const patterns = this.fileExtensions.map(ext => `**/*${ext}`);
     
     const files = await glob(patterns, {

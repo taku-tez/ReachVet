@@ -14,7 +14,7 @@ export class KotlinAdapter extends BaseLanguageAdapter {
   language: SupportedLanguage = 'kotlin';
   fileExtensions = ['.kt', '.kts'];
 
-  private ignorePatterns = [
+  protected ignorePatterns = [
     '**/build/**',
     '**/.gradle/**',
     '**/buildSrc/**',
@@ -182,7 +182,7 @@ export class KotlinAdapter extends BaseLanguageAdapter {
     );
   }
 
-  private async findSourceFiles(sourceDir: string): Promise<string[]> {
+  protected async findSourceFiles(sourceDir: string): Promise<string[]> {
     const patterns = this.fileExtensions.map(ext => `**/*${ext}`);
     
     const files = await glob(patterns, {

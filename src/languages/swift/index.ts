@@ -14,7 +14,7 @@ export class SwiftAdapter extends BaseLanguageAdapter {
   language: SupportedLanguage = 'swift';
   fileExtensions = ['.swift'];
 
-  private ignorePatterns = [
+  protected ignorePatterns = [
     '**/Pods/**',
     '**/Carthage/**',
     '**/.build/**',
@@ -178,7 +178,7 @@ export class SwiftAdapter extends BaseLanguageAdapter {
     );
   }
 
-  private async findSourceFiles(sourceDir: string): Promise<string[]> {
+  protected async findSourceFiles(sourceDir: string): Promise<string[]> {
     const patterns = this.fileExtensions.map(ext => `**/*${ext}`);
     
     const files = await glob(patterns, {

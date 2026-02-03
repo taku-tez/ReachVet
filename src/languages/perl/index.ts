@@ -14,7 +14,7 @@ export class PerlAdapter extends BaseLanguageAdapter {
   language: SupportedLanguage = 'perl';
   fileExtensions = ['.pl', '.pm', '.t'];
 
-  private ignorePatterns = [
+  protected ignorePatterns = [
     '**/blib/**',
     '**/local/**',
     '**/.build/**',
@@ -149,7 +149,7 @@ export class PerlAdapter extends BaseLanguageAdapter {
     );
   }
 
-  private async findSourceFiles(sourceDir: string): Promise<string[]> {
+  protected async findSourceFiles(sourceDir: string): Promise<string[]> {
     const patterns = this.fileExtensions.map(ext => `**/*${ext}`);
     
     const files = await glob(patterns, {

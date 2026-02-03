@@ -14,7 +14,7 @@ export class RubyAdapter extends BaseLanguageAdapter {
   language: SupportedLanguage = 'ruby';
   fileExtensions = ['.rb', '.rake', '.gemspec', '.ru'];
 
-  private ignorePatterns = [
+  protected ignorePatterns = [
     '**/vendor/**',
     '**/bundle/**',
     '**/.bundle/**',
@@ -163,7 +163,7 @@ export class RubyAdapter extends BaseLanguageAdapter {
     );
   }
 
-  private async findSourceFiles(sourceDir: string): Promise<string[]> {
+  protected async findSourceFiles(sourceDir: string): Promise<string[]> {
     const patterns = this.fileExtensions.map(ext => `**/*${ext}`);
     
     const files = await glob(patterns, {
