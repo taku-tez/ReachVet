@@ -2,7 +2,9 @@
  * ReachVet - Base Language Adapter
  */
 
-import type { LanguageAdapter, SupportedLanguage, Component, ComponentResult, AnalysisWarning } from '../types.js';
+import { glob } from 'glob';
+import { readFile } from 'node:fs/promises';
+import type { LanguageAdapter, SupportedLanguage, Component, ComponentResult, AnalysisWarning, CodeLocation, UsageInfo } from '../types.js';
 
 /**
  * Abstract base class for language adapters
@@ -10,6 +12,9 @@ import type { LanguageAdapter, SupportedLanguage, Component, ComponentResult, An
 export abstract class BaseLanguageAdapter implements LanguageAdapter {
   abstract language: SupportedLanguage;
   abstract fileExtensions: string[];
+  
+  /** Patterns to ignore when searching for source files */
+  protected ignorePatterns: string[] = ['**/node_modules/**', '**/.git/**'];
 
   abstract analyze(sourceDir: string, components: Component[]): Promise<ComponentResult[]>;
   abstract canHandle(sourceDir: string): Promise<boolean>;
@@ -77,5 +82,79 @@ export abstract class BaseLanguageAdapter implements LanguageAdapter {
       notes,
       warnings: warnings?.length ? warnings : undefined
     };
+  }
+
+  /**
+   * Find source files in a directory
+   */
+  protected async findSourceFiles(sourceDir: string, customIgnore?: string[]): Promise<string[]> {
+    const patterns = this.fileExtensions.map(ext => `**/*${ext}`);
+    const ignore = [...this.ignorePatterns, ...(customIgnore || [])];
+    
+    const files = await glob(patterns, {
+      cwd: sourceDir,
+      absolute: true,
+      ignore,
+      nodir: true
+    });
+
+    return files;
+  }
+
+  /**
+   * Read and parse all source files, returning only those with imports
+   */
+  protected async parseSourceFiles<T>(
+    sourceDir: string,
+    parseFunc: (content: string, fileName: string) => T[],
+    customIgnore?: string[]
+  ): Promise<Array<{ file: string; imports: T[]; source: string }>> {
+    const files = await this.findSourceFiles(sourceDir, customIgnore);
+    const result: Array<{ file: string; imports: T[]; source: string }> = [];
+
+    for (const file of files) {
+      try {
+        const content = await readFile(file, 'utf-8');
+        const imports = parseFunc(content, file);
+        if (imports.length > 0) {
+          result.push({ file, imports, source: content });
+        }
+      } catch {
+        // Skip files that can't be parsed
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Create usage info from locations and used members
+   */
+  protected createUsage(
+    locations: CodeLocation[],
+    usedMembers?: string[],
+    importStyle: UsageInfo['importStyle'] = 'esm'
+  ): UsageInfo {
+    return {
+      importStyle,
+      usedMembers: usedMembers?.length ? usedMembers : undefined,
+      locations
+    };
+  }
+
+  /**
+   * Check if any vulnerable functions are used
+   */
+  protected checkVulnerableFunctions(
+    component: Component,
+    usedMethods: string[]
+  ): string[] {
+    const vulnFunctions = component.vulnerabilities?.flatMap(v => v.affectedFunctions ?? []) ?? [];
+    
+    if (vulnFunctions.length === 0 || usedMethods.length === 0) {
+      return [];
+    }
+    
+    return vulnFunctions.filter(f => usedMethods.includes(f));
   }
 }

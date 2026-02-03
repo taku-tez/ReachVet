@@ -2,10 +2,14 @@
  * ReachVet - Swift Language Support Tests
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { parseSource, findTypeUsages, getModulesForPackage, isAppleFramework } from '../languages/swift/parser.js';
 import { parsePackageSwift, parsePackageResolved, parsePodfile, parsePodfileLock, parseCartfile, getTargetPlatform } from '../languages/swift/spm.js';
 import { SwiftAdapter } from '../languages/swift/index.js';
+import type { Component } from '../types.js';
 
 describe('Swift Parser', () => {
   describe('parseSource', () => {
@@ -312,5 +316,76 @@ describe('SwiftAdapter', () => {
 
   it('should have correct file extensions', () => {
     expect(adapter.fileExtensions).toContain('.swift');
+  });
+
+  describe('integration', () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+      tmpDir = await mkdtemp(join(tmpdir(), 'reachvet-swift-'));
+    });
+
+    afterEach(async () => {
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('should detect Swift project with Package.swift', async () => {
+      await writeFile(join(tmpDir, 'Package.swift'), `
+// swift-tools-version:5.9
+import PackageDescription
+let package = Package(name: "MyApp")
+`);
+      
+      expect(await adapter.canHandle(tmpDir)).toBe(true);
+    });
+
+    it('should analyze Swift imports', async () => {
+      await writeFile(join(tmpDir, 'Package.swift'), `
+// swift-tools-version:5.9
+import PackageDescription
+let package = Package(name: "MyApp")
+`);
+      await mkdir(join(tmpDir, 'Sources'), { recursive: true });
+      await writeFile(join(tmpDir, 'Sources', 'App.swift'), `
+import Foundation
+import Alamofire
+
+class NetworkManager {
+    func fetch() {
+        AF.request("https://api.example.com")
+            .responseJSON { response in }
+    }
+}
+`);
+
+      const components: Component[] = [
+        { name: 'Alamofire', version: '5.8.0' }
+      ];
+
+      const results = await adapter.analyze(tmpDir, components);
+      
+      expect(results).toHaveLength(1);
+      expect(results[0].status).toBe('reachable');
+      expect(results[0].usage?.locations).toHaveLength(1);
+    });
+
+    it('should return not_reachable for unused components', async () => {
+      await writeFile(join(tmpDir, 'Package.swift'), '// Package.swift');
+      await mkdir(join(tmpDir, 'Sources'), { recursive: true });
+      await writeFile(join(tmpDir, 'Sources', 'App.swift'), `
+import Foundation
+
+class App {}
+`);
+
+      const components: Component[] = [
+        { name: 'Alamofire', version: '5.8.0' }
+      ];
+
+      const results = await adapter.analyze(tmpDir, components);
+      
+      expect(results).toHaveLength(1);
+      expect(results[0].status).toBe('not_reachable');
+    });
   });
 });

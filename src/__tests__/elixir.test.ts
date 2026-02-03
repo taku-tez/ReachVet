@@ -2,10 +2,14 @@
  * ReachVet - Elixir Language Support Tests
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { parseSource, findModuleUsages, getModulesForPackage, isStandardModule } from '../languages/elixir/parser.js';
 import { parseMixExs, parseMixLock, getElixirVersion, getAppName, isUmbrellaProject } from '../languages/elixir/mix.js';
 import { ElixirAdapter } from '../languages/elixir/index.js';
+import type { Component } from '../types.js';
 
 describe('Elixir Parser', () => {
   describe('parseSource', () => {
@@ -269,5 +273,70 @@ describe('ElixirAdapter', () => {
   it('should have correct file extensions', () => {
     expect(adapter.fileExtensions).toContain('.ex');
     expect(adapter.fileExtensions).toContain('.exs');
+  });
+
+  describe('integration', () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+      tmpDir = await mkdtemp(join(tmpdir(), 'reachvet-elixir-'));
+    });
+
+    afterEach(async () => {
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('should detect Elixir project with mix.exs', async () => {
+      await writeFile(join(tmpDir, 'mix.exs'), `
+defmodule MyApp.MixProject do
+  use Mix.Project
+  def project, do: [app: :my_app]
+end
+`);
+      
+      expect(await adapter.canHandle(tmpDir)).toBe(true);
+    });
+
+    it('should analyze Elixir imports', async () => {
+      await writeFile(join(tmpDir, 'mix.exs'), 'defmodule MyApp.MixProject do end');
+      await mkdir(join(tmpDir, 'lib'), { recursive: true });
+      await writeFile(join(tmpDir, 'lib', 'app.ex'), `
+defmodule MyApp do
+  use Phoenix.Controller
+  alias MyApp.Repo
+  
+  def index(conn, _params) do
+    render(conn, "index.html")
+  end
+end
+`);
+
+      const components: Component[] = [
+        { name: 'phoenix', version: '1.7.0' }
+      ];
+
+      const results = await adapter.analyze(tmpDir, components);
+      
+      expect(results).toHaveLength(1);
+      expect(results[0].status).toBe('reachable');
+    });
+
+    it('should return not_reachable for unused components', async () => {
+      await writeFile(join(tmpDir, 'mix.exs'), 'defmodule Test do end');
+      await mkdir(join(tmpDir, 'lib'), { recursive: true });
+      await writeFile(join(tmpDir, 'lib', 'app.ex'), `
+defmodule MyApp do
+end
+`);
+
+      const components: Component[] = [
+        { name: 'phoenix', version: '1.7.0' }
+      ];
+
+      const results = await adapter.analyze(tmpDir, components);
+      
+      expect(results).toHaveLength(1);
+      expect(results[0].status).toBe('not_reachable');
+    });
   });
 });

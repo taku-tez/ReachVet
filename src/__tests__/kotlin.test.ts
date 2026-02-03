@@ -2,10 +2,14 @@
  * ReachVet - Kotlin Language Support Tests
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { parseSource, findClassUsages, getPackagesForArtifact, isStandardPackage } from '../languages/kotlin/parser.js';
 import { parseGradleKts, parseGradleGroovy, parseSettingsGradle, parseVersionCatalog, detectKotlinVersion } from '../languages/kotlin/gradle.js';
 import { KotlinAdapter } from '../languages/kotlin/index.js';
+import type { Component } from '../types.js';
 
 describe('Kotlin Parser', () => {
   describe('parseSource', () => {
@@ -307,5 +311,72 @@ describe('KotlinAdapter', () => {
   it('should have correct file extensions', () => {
     expect(adapter.fileExtensions).toContain('.kt');
     expect(adapter.fileExtensions).toContain('.kts');
+  });
+
+  describe('integration', () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+      tmpDir = await mkdtemp(join(tmpdir(), 'reachvet-kotlin-'));
+    });
+
+    afterEach(async () => {
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('should detect Kotlin project with build.gradle.kts', async () => {
+      await writeFile(join(tmpDir, 'build.gradle.kts'), `
+plugins {
+    kotlin("jvm") version "1.9.0"
+}
+`);
+      
+      expect(await adapter.canHandle(tmpDir)).toBe(true);
+    });
+
+    it('should analyze Kotlin imports', async () => {
+      await writeFile(join(tmpDir, 'build.gradle.kts'), '// build.gradle.kts');
+      await mkdir(join(tmpDir, 'src', 'main', 'kotlin'), { recursive: true });
+      await writeFile(join(tmpDir, 'src', 'main', 'kotlin', 'App.kt'), `
+package com.example
+
+import retrofit2.Retrofit
+import retrofit2.Call
+
+class NetworkClient {
+    private val retrofit = Retrofit.Builder()
+        .baseUrl("https://api.example.com")
+        .build()
+}
+`);
+
+      const components: Component[] = [
+        { name: 'retrofit', version: '2.9.0' }
+      ];
+
+      const results = await adapter.analyze(tmpDir, components);
+      
+      expect(results).toHaveLength(1);
+      expect(results[0].status).toBe('reachable');
+    });
+
+    it('should return not_reachable for unused components', async () => {
+      await writeFile(join(tmpDir, 'build.gradle.kts'), '// build');
+      await mkdir(join(tmpDir, 'src', 'main', 'kotlin'), { recursive: true });
+      await writeFile(join(tmpDir, 'src', 'main', 'kotlin', 'App.kt'), `
+package com.example
+
+class App
+`);
+
+      const components: Component[] = [
+        { name: 'retrofit', version: '2.9.0' }
+      ];
+
+      const results = await adapter.analyze(tmpDir, components);
+      
+      expect(results).toHaveLength(1);
+      expect(results[0].status).toBe('not_reachable');
+    });
   });
 });

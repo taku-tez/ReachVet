@@ -11,6 +11,7 @@
     "dev": "tsc --watch",
     "start": "node dist/cli.js",
     "test": "vitest",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint src --ext .ts",
     "prepublishOnly": "npm run build"
   },

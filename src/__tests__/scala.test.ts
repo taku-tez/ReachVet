@@ -2,10 +2,14 @@
  * ReachVet - Scala Language Support Tests
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { parseSource, findTypeUsages, getPackagesForArtifact, isStandardPackage } from '../languages/scala/parser.js';
 import { parseBuildSbt, parsePluginsSbt, getScalaVersion, getCrossScalaVersions, isMultiProjectBuild, getSubProjects } from '../languages/scala/sbt.js';
 import { ScalaAdapter } from '../languages/scala/index.js';
+import type { Component } from '../types.js';
 
 describe('Scala Parser', () => {
   describe('parseSource', () => {
@@ -314,5 +318,69 @@ describe('ScalaAdapter', () => {
   it('should have correct file extensions', () => {
     expect(adapter.fileExtensions).toContain('.scala');
     expect(adapter.fileExtensions).toContain('.sc');
+  });
+
+  describe('integration', () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+      tmpDir = await mkdtemp(join(tmpdir(), 'reachvet-scala-'));
+    });
+
+    afterEach(async () => {
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('should detect Scala project with build.sbt', async () => {
+      await writeFile(join(tmpDir, 'build.sbt'), `
+name := "MyApp"
+scalaVersion := "2.13.12"
+`);
+      
+      expect(await adapter.canHandle(tmpDir)).toBe(true);
+    });
+
+    it('should analyze Scala imports', async () => {
+      await writeFile(join(tmpDir, 'build.sbt'), 'name := "test"');
+      await mkdir(join(tmpDir, 'src', 'main', 'scala'), { recursive: true });
+      await writeFile(join(tmpDir, 'src', 'main', 'scala', 'Main.scala'), `
+package com.example
+
+import cats.effect.IO
+import cats.effect.IOApp
+
+object Main extends IOApp.Simple {
+  def run: IO[Unit] = IO.println("Hello")
+}
+`);
+
+      const components: Component[] = [
+        { name: 'cats-effect', version: '3.5.0' }
+      ];
+
+      const results = await adapter.analyze(tmpDir, components);
+      
+      expect(results).toHaveLength(1);
+      expect(results[0].status).toBe('reachable');
+    });
+
+    it('should return not_reachable for unused components', async () => {
+      await writeFile(join(tmpDir, 'build.sbt'), 'name := "test"');
+      await mkdir(join(tmpDir, 'src', 'main', 'scala'), { recursive: true });
+      await writeFile(join(tmpDir, 'src', 'main', 'scala', 'Main.scala'), `
+package com.example
+
+object Main extends App
+`);
+
+      const components: Component[] = [
+        { name: 'cats-effect', version: '3.5.0' }
+      ];
+
+      const results = await adapter.analyze(tmpDir, components);
+      
+      expect(results).toHaveLength(1);
+      expect(results[0].status).toBe('not_reachable');
+    });
   });
 });

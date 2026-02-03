@@ -2,10 +2,14 @@
  * ReachVet - Dart/Flutter Language Support Tests
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { parseSource, findClassUsages, getClassesForPackage, isSdkPackage } from '../languages/dart/parser.js';
 import { parsePubspecYaml, parsePubspecLock, getProjectName, getSdkVersion, isFlutterProject } from '../languages/dart/pubspec.js';
 import { DartAdapter } from '../languages/dart/index.js';
+import type { Component } from '../types.js';
 
 describe('Dart Parser', () => {
   describe('parseSource', () => {
@@ -281,5 +285,57 @@ describe('DartAdapter', () => {
 
   it('should have correct file extensions', () => {
     expect(adapter.fileExtensions).toContain('.dart');
+  });
+
+  describe('integration', () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+      tmpDir = await mkdtemp(join(tmpdir(), 'reachvet-dart-'));
+    });
+
+    afterEach(async () => {
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('should detect Dart project with pubspec.yaml', async () => {
+      await writeFile(join(tmpDir, 'pubspec.yaml'), `
+name: my_app
+version: 1.0.0
+`);
+      
+      expect(await adapter.canHandle(tmpDir)).toBe(true);
+    });
+
+    it('should return unknown when no source files found', async () => {
+      await writeFile(join(tmpDir, 'pubspec.yaml'), 'name: my_app');
+      // No .dart files
+
+      const components: Component[] = [
+        { name: 'dio', version: '5.3.0' }
+      ];
+
+      const results = await adapter.analyze(tmpDir, components);
+      
+      expect(results).toHaveLength(1);
+      expect(results[0].status).toBe('unknown');
+    });
+
+    it('should return not_reachable for unused components', async () => {
+      await writeFile(join(tmpDir, 'pubspec.yaml'), 'name: test');
+      await mkdir(join(tmpDir, 'lib'), { recursive: true });
+      await writeFile(join(tmpDir, 'lib', 'main.dart'), `
+class App {}
+`);
+
+      const components: Component[] = [
+        { name: 'dio', version: '5.3.0' }
+      ];
+
+      const results = await adapter.analyze(tmpDir, components);
+      
+      expect(results).toHaveLength(1);
+      expect(results[0].status).toBe('not_reachable');
+    });
   });
 });

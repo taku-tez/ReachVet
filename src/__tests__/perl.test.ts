@@ -2,10 +2,14 @@
  * ReachVet - Perl Language Support Tests
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { parseSource, findModuleUsages, getModulesForDist, isCoreModule } from '../languages/perl/parser.js';
 import { parseCpanfile, parseMetaJson, parseMakefilePL, getPerlVersion } from '../languages/perl/cpanfile.js';
 import { PerlAdapter } from '../languages/perl/index.js';
+import type { Component } from '../types.js';
 
 describe('Perl Parser', () => {
   describe('parseSource', () => {
@@ -254,5 +258,72 @@ describe('PerlAdapter', () => {
     expect(adapter.fileExtensions).toContain('.pl');
     expect(adapter.fileExtensions).toContain('.pm');
     expect(adapter.fileExtensions).toContain('.t');
+  });
+
+  describe('integration', () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+      tmpDir = await mkdtemp(join(tmpdir(), 'reachvet-perl-'));
+    });
+
+    afterEach(async () => {
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('should detect Perl project with cpanfile', async () => {
+      await writeFile(join(tmpDir, 'cpanfile'), `
+requires 'Mojolicious', '9.0';
+`);
+      
+      expect(await adapter.canHandle(tmpDir)).toBe(true);
+    });
+
+    it('should analyze Perl imports', async () => {
+      await writeFile(join(tmpDir, 'cpanfile'), "requires 'Mojolicious';");
+      await mkdir(join(tmpDir, 'lib'), { recursive: true });
+      await writeFile(join(tmpDir, 'lib', 'MyApp.pm'), `
+package MyApp;
+use strict;
+use warnings;
+use Mojolicious;
+
+sub startup {
+    my $self = shift;
+}
+
+1;
+`);
+
+      const components: Component[] = [
+        { name: 'Mojolicious', version: '9.0' }
+      ];
+
+      const results = await adapter.analyze(tmpDir, components);
+      
+      expect(results).toHaveLength(1);
+      expect(results[0].status).toBe('reachable');
+    });
+
+    it('should return not_reachable for unused components', async () => {
+      await writeFile(join(tmpDir, 'cpanfile'), "requires 'Mojolicious';");
+      await mkdir(join(tmpDir, 'lib'), { recursive: true });
+      await writeFile(join(tmpDir, 'lib', 'MyApp.pm'), `
+package MyApp;
+use strict;
+use warnings;
+
+1;
+`);
+
+      const components: Component[] = [
+        { name: 'Mojolicious', version: '9.0' }
+      ];
+
+      const results = await adapter.analyze(tmpDir, components);
+      
+      expect(results).toHaveLength(1);
+      expect(results[0].status).toBe('not_reachable');
+    });
   });
 });

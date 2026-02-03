@@ -2,10 +2,14 @@
  * ReachVet - C# Language Support Tests
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { parseSource, findClassUsages, getNamespacesForPackage, isSystemNamespace } from '../languages/csharp/parser.js';
 import { parseCsprojSdk, parsePackagesConfig, parseDirectoryPackagesProps, getTargetFramework } from '../languages/csharp/nuget.js';
 import { CSharpAdapter } from '../languages/csharp/index.js';
+import type { Component } from '../types.js';
 
 describe('C# Parser', () => {
   describe('parseSource', () => {
@@ -274,5 +278,78 @@ describe('CSharpAdapter', () => {
 
   it('should have correct file extensions', () => {
     expect(adapter.fileExtensions).toContain('.cs');
+  });
+
+  describe('integration', () => {
+    let tmpDir: string;
+
+    beforeEach(async () => {
+      tmpDir = await mkdtemp(join(tmpdir(), 'reachvet-csharp-'));
+    });
+
+    afterEach(async () => {
+      await rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('should detect C# project with .csproj', async () => {
+      await writeFile(join(tmpDir, 'MyApp.csproj'), `
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+</Project>
+`);
+      
+      expect(await adapter.canHandle(tmpDir)).toBe(true);
+    });
+
+    it('should analyze C# imports', async () => {
+      await writeFile(join(tmpDir, 'MyApp.csproj'), '<Project Sdk="Microsoft.NET.Sdk"></Project>');
+      await writeFile(join(tmpDir, 'Program.cs'), `
+using System;
+using Newtonsoft.Json;
+
+namespace MyApp
+{
+    class Program
+    {
+        static void Main()
+        {
+            var json = JsonConvert.SerializeObject(new { Name = "Test" });
+        }
+    }
+}
+`);
+
+      const components: Component[] = [
+        { name: 'Newtonsoft.Json', version: '13.0.3' }
+      ];
+
+      const results = await adapter.analyze(tmpDir, components);
+      
+      expect(results).toHaveLength(1);
+      expect(results[0].status).toBe('reachable');
+    });
+
+    it('should return not_reachable for unused components', async () => {
+      await writeFile(join(tmpDir, 'MyApp.csproj'), '<Project></Project>');
+      await writeFile(join(tmpDir, 'Program.cs'), `
+using System;
+
+namespace MyApp
+{
+    class Program { }
+}
+`);
+
+      const components: Component[] = [
+        { name: 'Newtonsoft.Json', version: '13.0.3' }
+      ];
+
+      const results = await adapter.analyze(tmpDir, components);
+      
+      expect(results).toHaveLength(1);
+      expect(results[0].status).toBe('not_reachable');
+    });
   });
 });
