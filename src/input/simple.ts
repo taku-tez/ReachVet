@@ -83,9 +83,12 @@ export function parseSimpleJsonString(content: string): Component[] {
 }
 
 /**
- * Parse from stdin
+ * Parse from stdin - auto-detects SBOM (CycloneDX/SPDX) or simple JSON format
  */
 export async function parseFromStdin(): Promise<Component[]> {
+  // Import here to avoid circular dependency
+  const { parseSBOMString } = await import('./sbom.js');
+  
   return new Promise((resolve, reject) => {
     let data = '';
     
@@ -93,7 +96,21 @@ export async function parseFromStdin(): Promise<Component[]> {
     process.stdin.on('data', chunk => { data += chunk; });
     process.stdin.on('end', () => {
       try {
-        resolve(parseSimpleJsonString(data));
+        const parsed = JSON.parse(data);
+        
+        // Detect SBOM format
+        if (parsed.bomFormat || parsed.specVersion || parsed.components) {
+          // CycloneDX format
+          resolve(parseSBOMString(data));
+        } else if (parsed.spdxVersion || parsed.packages) {
+          // SPDX format
+          resolve(parseSBOMString(data));
+        } else if (Array.isArray(parsed)) {
+          // Simple JSON array
+          resolve(parseSimpleJsonString(data));
+        } else {
+          throw new Error('Unknown input format. Expected CycloneDX, SPDX, or simple JSON array.');
+        }
       } catch (err) {
         reject(err);
       }

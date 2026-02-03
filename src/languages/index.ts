@@ -61,8 +61,26 @@ export function getAllAdapters(): LanguageAdapter[] {
  * Auto-detect language from source directory
  */
 export async function detectLanguage(sourceDir: string): Promise<SupportedLanguage | null> {
+  const { existsSync } = await import('node:fs');
+  const { glob } = await import('glob');
+  const { join } = await import('node:path');
+  
   for (const adapter of getAllAdapters()) {
     if (await adapter.canHandle(sourceDir)) {
+      // Special case: distinguish JavaScript from TypeScript
+      if (adapter.language === 'javascript') {
+        // Check for TypeScript indicators
+        const hasTsConfig = existsSync(join(sourceDir, 'tsconfig.json'));
+        const hasTsFiles = (await glob('**/*.{ts,tsx}', { 
+          cwd: sourceDir, 
+          ignore: ['**/node_modules/**', '**/dist/**'],
+          nodir: true
+        })).length > 0;
+        
+        if (hasTsConfig || hasTsFiles) {
+          return 'typescript';
+        }
+      }
       return adapter.language;
     }
   }

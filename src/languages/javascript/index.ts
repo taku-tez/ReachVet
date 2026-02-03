@@ -16,15 +16,18 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
   language: SupportedLanguage = 'javascript';
   fileExtensions = ['.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx'];
 
-  protected ignorePatterns = [
-    '**/node_modules/**',
-    '**/dist/**',
-    '**/build/**',
-    '**/.git/**',
-    '**/coverage/**',
-    '**/*.min.js',
-    '**/*.bundle.js'
-  ];
+  constructor() {
+    super();
+    // Extend base ignore patterns with JS-specific patterns
+    this.ignorePatterns = [
+      ...this.ignorePatterns,
+      '**/dist/**',
+      '**/build/**',
+      '**/coverage/**',
+      '**/*.min.js',
+      '**/*.bundle.js'
+    ];
+  }
 
   /**
    * Check if this adapter can handle the directory
@@ -204,7 +207,7 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
       return this.notReachable(component, ['Not imported in any source file']);
     }
 
-    // If only found via re-export, create synthetic import info
+    // If only found via re-export, mark as indirect (not direct reachable)
     if (matchingImports.length === 0 && reexportInfo) {
       const chainInfo = reexportInfo.chains[0];
       const indirectWarning: AnalysisWarning = {
@@ -213,7 +216,7 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
         severity: 'info'
       };
       
-      return this.reachable(
+      return this.indirect(
         component,
         {
           importStyle: 'esm',
@@ -224,7 +227,6 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
             snippet: `Re-exported through ${chainInfo.chain.length} file(s)`
           }]
         },
-        'medium',
         [`Imported indirectly via barrel file (depth: ${chainInfo.depth})`],
         [indirectWarning, ...additionalWarnings]
       );

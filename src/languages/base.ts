@@ -86,6 +86,25 @@ export abstract class BaseLanguageAdapter implements LanguageAdapter {
   }
 
   /**
+   * Create an "indirect" result (used via re-export/transitive)
+   */
+  protected indirect(
+    component: Component,
+    usage: ComponentResult['usage'],
+    notes?: string[],
+    warnings?: AnalysisWarning[]
+  ): ComponentResult {
+    return {
+      component,
+      status: 'indirect',
+      usage,
+      confidence: 'medium',
+      notes,
+      warnings: warnings?.length ? warnings : undefined
+    };
+  }
+
+  /**
    * Create an "unknown" result
    */
   protected unknown(component: Component, notes?: string[], warnings?: AnalysisWarning[]): ComponentResult {
