@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { BaseLanguageAdapter } from '../base.js';
 import { parseSource, type ImportInfo } from './parser.js';
 import { matchesComponent, extractUsedMembers, getPrimaryImportStyle } from './detector.js';
-import type { Component, ComponentResult, SupportedLanguage, UsageInfo, CodeLocation } from '../../types.js';
+import type { Component, ComponentResult, SupportedLanguage, UsageInfo, CodeLocation, AnalysisWarning } from '../../types.js';
 
 export class JavaScriptAdapter extends BaseLanguageAdapter {
   language: SupportedLanguage = 'javascript';
@@ -105,6 +105,9 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
       locations
     };
 
+    // Generate warnings
+    const warnings = this.generateWarnings(allMatchedImports);
+
     // Check if specific vulnerable functions are used
     const vulnFunctions = component.vulnerabilities?.flatMap(v => v.affectedFunctions ?? []) ?? [];
     
@@ -117,18 +120,30 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
           component,
           { ...usage, usedMembers: affectedUsed },
           'high',
-          [`Vulnerable function(s) explicitly imported: ${affectedUsed.join(', ')}`]
+          [`Vulnerable function(s) explicitly imported: ${affectedUsed.join(', ')}`],
+          warnings
         );
       }
 
       // Namespace or default import - can't be sure
       const hasNamespaceImport = allMatchedImports.some(i => i.isNamespaceImport || i.isDefaultImport);
       if (hasNamespaceImport) {
+        // Add namespace import warning
+        const nsWarnings = allMatchedImports
+          .filter(i => i.isNamespaceImport || i.isDefaultImport)
+          .map(i => ({
+            code: 'namespace_import' as const,
+            message: `Namespace/default import - cannot determine which functions are used at runtime`,
+            location: i.location,
+            severity: 'warning' as const
+          }));
+        
         return this.reachable(
           component,
           usage,
           'medium',
-          [`Namespace/default import detected - vulnerable functions (${vulnFunctions.join(', ')}) may be accessible`]
+          [`Namespace/default import detected - vulnerable functions (${vulnFunctions.join(', ')}) may be accessible`],
+          [...warnings, ...nsWarnings]
         );
       }
 
@@ -137,7 +152,8 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
         return this.imported(
           component,
           usage,
-          [`Imported but vulnerable functions (${vulnFunctions.join(', ')}) not explicitly used`]
+          [`Imported but vulnerable functions (${vulnFunctions.join(', ')}) not explicitly used`],
+          warnings
         );
       }
     }
@@ -147,8 +163,29 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
       component,
       usage,
       'high',
-      [`Imported in ${locations.length} location(s)`]
+      [`Imported in ${locations.length} location(s)`],
+      warnings
     );
+  }
+
+  /**
+   * Generate warnings for analysis limitations
+   */
+  private generateWarnings(imports: ImportInfo[]): AnalysisWarning[] {
+    const warnings: AnalysisWarning[] = [];
+
+    // Check for dynamic imports
+    const dynamicImports = imports.filter(i => i.importStyle === 'dynamic');
+    for (const imp of dynamicImports) {
+      warnings.push({
+        code: 'dynamic_import',
+        message: 'Dynamic import detected - runtime behavior may differ from static analysis',
+        location: imp.location,
+        severity: 'warning'
+      });
+    }
+
+    return warnings;
   }
 
   /**

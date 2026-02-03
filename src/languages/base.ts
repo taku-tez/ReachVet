@@ -2,7 +2,7 @@
  * ReachVet - Base Language Adapter
  */
 
-import type { LanguageAdapter, SupportedLanguage, Component, ComponentResult } from '../types.js';
+import type { LanguageAdapter, SupportedLanguage, Component, ComponentResult, AnalysisWarning } from '../types.js';
 
 /**
  * Abstract base class for language adapters
@@ -17,12 +17,13 @@ export abstract class BaseLanguageAdapter implements LanguageAdapter {
   /**
    * Create a "not reachable" result
    */
-  protected notReachable(component: Component, notes?: string[]): ComponentResult {
+  protected notReachable(component: Component, notes?: string[], warnings?: AnalysisWarning[]): ComponentResult {
     return {
       component,
       status: 'not_reachable',
       confidence: 'high',
-      notes
+      notes,
+      warnings: warnings?.length ? warnings : undefined
     };
   }
 
@@ -33,14 +34,16 @@ export abstract class BaseLanguageAdapter implements LanguageAdapter {
     component: Component,
     usage: ComponentResult['usage'],
     confidence: ComponentResult['confidence'] = 'high',
-    notes?: string[]
+    notes?: string[],
+    warnings?: AnalysisWarning[]
   ): ComponentResult {
     return {
       component,
       status: 'reachable',
       usage,
       confidence,
-      notes
+      notes,
+      warnings: warnings?.length ? warnings : undefined
     };
   }
 
@@ -50,26 +53,29 @@ export abstract class BaseLanguageAdapter implements LanguageAdapter {
   protected imported(
     component: Component,
     usage: ComponentResult['usage'],
-    notes?: string[]
+    notes?: string[],
+    warnings?: AnalysisWarning[]
   ): ComponentResult {
     return {
       component,
       status: 'imported',
       usage,
       confidence: 'medium',
-      notes
+      notes,
+      warnings: warnings?.length ? warnings : undefined
     };
   }
 
   /**
    * Create an "unknown" result
    */
-  protected unknown(component: Component, notes?: string[]): ComponentResult {
+  protected unknown(component: Component, notes?: string[], warnings?: AnalysisWarning[]): ComponentResult {
     return {
       component,
       status: 'unknown',
       confidence: 'low',
-      notes
+      notes,
+      warnings: warnings?.length ? warnings : undefined
     };
   }
 }

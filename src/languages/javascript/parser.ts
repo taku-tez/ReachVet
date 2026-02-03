@@ -133,14 +133,61 @@ export function parseSource(source: string, fileName: string = 'file.ts'): Impor
       if (ts.isIdentifier(expression) && expression.text === 'require') {
         const arg = node.arguments[0];
         if (arg && ts.isStringLiteral(arg)) {
-          imports.push({
+          const info: ImportInfo = {
             moduleName: arg.text,
             importStyle: 'commonjs',
             isNamespaceImport: false,
             isDefaultImport: false,
             namedImports: [],
             location: getLocation(node)
-          });
+          };
+
+          // Check parent context for better analysis
+          const requireCall = node;
+          let currentNode: ts.Node = requireCall;
+
+          // Check for property access: require('lodash').merge
+          if (currentNode.parent && ts.isPropertyAccessExpression(currentNode.parent) 
+              && currentNode.parent.expression === currentNode) {
+            const propAccess = currentNode.parent;
+            info.namedImports.push(propAccess.name.text);
+            currentNode = propAccess;
+          }
+
+          // Check for variable declaration: const x = require() or const {a,b} = require()
+          if (currentNode.parent && ts.isVariableDeclaration(currentNode.parent)) {
+            const varDecl = currentNode.parent;
+            const bindingName = varDecl.name;
+
+            // Simple identifier: const _ = require('lodash')
+            if (ts.isIdentifier(bindingName)) {
+              info.localName = bindingName.text;
+              // Treat as namespace-like (whole module import)
+              if (info.namedImports.length === 0) {
+                info.isDefaultImport = true;
+              }
+            }
+            // Destructuring: const { merge, clone } = require('lodash')
+            else if (ts.isObjectBindingPattern(bindingName)) {
+              for (const element of bindingName.elements) {
+                if (ts.isBindingElement(element)) {
+                  // Handle { merge } and { merge: localMerge }
+                  const propertyName = element.propertyName;
+                  const name = element.name;
+                  
+                  if (propertyName && ts.isIdentifier(propertyName)) {
+                    // { originalName: localName }
+                    info.namedImports.push(propertyName.text);
+                  } else if (ts.isIdentifier(name)) {
+                    // { name }
+                    info.namedImports.push(name.text);
+                  }
+                }
+              }
+            }
+          }
+
+          imports.push(info);
         }
       }
 

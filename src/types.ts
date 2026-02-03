@@ -74,6 +74,16 @@ export interface UsageInfo {
 }
 
 /**
+ * Warning about analysis limitations
+ */
+export interface AnalysisWarning {
+  code: 'dynamic_import' | 'eval_detected' | 'indirect_usage' | 'namespace_import' | 'barrel_file';
+  message: string;
+  location?: CodeLocation;
+  severity: 'info' | 'warning';
+}
+
+/**
  * Analysis result for a single component
  */
 export interface ComponentResult {
@@ -82,6 +92,7 @@ export interface ComponentResult {
   usage?: UsageInfo;
   confidence: 'high' | 'medium' | 'low';
   notes?: string[];
+  warnings?: AnalysisWarning[];
 }
 
 // ============================================================
@@ -96,6 +107,7 @@ export interface AnalysisSummary {
   indirect: number;
   unknown: number;
   vulnerableReachable: number;  // Vulnerable AND reachable
+  warningsCount: number;        // Total warnings across all components
 }
 
 export interface AnalysisOutput {

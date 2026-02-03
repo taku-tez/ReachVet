@@ -80,10 +80,14 @@ export class Analyzer {
    */
   private calculateSummary(results: ComponentResult[]): AnalysisSummary {
     let vulnerableReachable = 0;
+    let warningsCount = 0;
 
     for (const result of results) {
       if (result.status === 'reachable' && result.component.vulnerabilities?.length) {
         vulnerableReachable++;
+      }
+      if (result.warnings?.length) {
+        warningsCount += result.warnings.length;
       }
     }
 
@@ -94,7 +98,8 @@ export class Analyzer {
       notReachable: results.filter(r => r.status === 'not_reachable').length,
       indirect: results.filter(r => r.status === 'indirect').length,
       unknown: results.filter(r => r.status === 'unknown').length,
-      vulnerableReachable
+      vulnerableReachable,
+      warningsCount
     };
   }
 }
