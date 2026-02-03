@@ -7,7 +7,7 @@ import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { parseSource, findTypeUsages, getModulesForPackage, isAppleFramework } from '../languages/swift/parser.js';
-import { parsePackageSwift, parsePackageResolved, parsePodfile, parsePodfileLock, parseCartfile, getTargetPlatform } from '../languages/swift/spm.js';
+import { parsePackageSwift, parsePackageResolved, parsePodfile, parsePodfileLock, parseCartfile, parseCartfileResolved, getTargetPlatform } from '../languages/swift/spm.js';
 import { SwiftAdapter } from '../languages/swift/index.js';
 import type { Component } from '../types.js';
 
@@ -303,6 +303,35 @@ platforms: [
       expect(platforms).toContain('iOS 15+');
       expect(platforms).toContain('macOS 12+');
       expect(platforms).toContain('tvOS 15+');
+    });
+  });
+
+  describe('parseCartfileResolved', () => {
+    it('should parse resolved Carthage versions', () => {
+      const content = `
+github "Alamofire/Alamofire" "5.8.1"
+github "SwiftyJSON/SwiftyJSON" "5.0.1"
+github "SnapKit/SnapKit" "5.6.0"
+`;
+      const deps = parseCartfileResolved(content);
+      
+      expect(deps).toHaveLength(3);
+      expect(deps[0].name).toBe('Alamofire');
+      expect(deps[0].version).toBe('5.8.1');
+      expect(deps[0].source).toBe('carthage');
+      expect(deps[1].name).toBe('SwiftyJSON');
+      expect(deps[2].name).toBe('SnapKit');
+    });
+
+    it('should handle git URLs', () => {
+      const content = `
+git "https://github.com/custom/repo.git" "v2.0.0"
+`;
+      const deps = parseCartfileResolved(content);
+      
+      expect(deps).toHaveLength(1);
+      expect(deps[0].name).toBe('repo');
+      expect(deps[0].version).toBe('v2.0.0');
     });
   });
 });

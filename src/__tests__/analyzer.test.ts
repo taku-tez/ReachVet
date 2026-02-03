@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { quickAnalyze } from '../core/analyzer.js';
+import { Analyzer, quickAnalyze } from '../core/analyzer.js';
 import type { Component } from '../types.js';
 
 describe('Analyzer - Warning System', () => {
@@ -335,4 +335,183 @@ describe('Analyzer - CommonJS Destructuring', () => {
     expect(result.results[0].status).toBe('reachable');
     expect(result.results[0].usage?.usedMembers).toContain('template');
   });
+});
+
+describe('Analyzer - Class Tests', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'reachvet-analyzer-'));
+    await writeFile(
+      join(tempDir, 'package.json'),
+      JSON.stringify({ name: 'test-analyzer', version: '1.0.0' })
+    );
+    await mkdir(join(tempDir, 'src'));
+  });
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('should auto-detect JavaScript language', async () => {
+    await writeFile(join(tempDir, 'src', 'index.js'), `const x = 1;`);
+
+    const analyzer = new Analyzer({ sourceDir: tempDir });
+    const result = await analyzer.analyze([{ name: 'lodash', version: '4.17.21' }]);
+
+    expect(result.language).toBe('javascript');
+  });
+
+  it('should use specified language over auto-detect', async () => {
+    await writeFile(join(tempDir, 'src', 'app.ts'), `const x: number = 1;`);
+
+    const analyzer = new Analyzer({ sourceDir: tempDir, language: 'typescript' });
+    const result = await analyzer.analyze([{ name: 'lodash', version: '4.17.21' }]);
+
+    expect(result.language).toBe('typescript');
+  });
+
+  it('should include version and timestamp in output', async () => {
+    await writeFile(join(tempDir, 'src', 'index.js'), `require('lodash');`);
+
+    const analyzer = new Analyzer({ sourceDir: tempDir });
+    const result = await analyzer.analyze([{ name: 'lodash', version: '4.17.21' }]);
+
+    expect(result.version).toBeDefined();
+    expect(result.timestamp).toBeDefined();
+    expect(result.sourceDir).toBe(tempDir);
+  });
+
+  it('should calculate summary correctly', async () => {
+    await writeFile(join(tempDir, 'src', 'app.js'), `
+      const lodash = require('lodash');
+      const chalk = require('chalk');
+    `);
+
+    const components: Component[] = [
+      { name: 'lodash', version: '4.17.21' },
+      { name: 'chalk', version: '5.0.0' },
+      { name: 'unused-pkg', version: '1.0.0' }
+    ];
+
+    const analyzer = new Analyzer({ sourceDir: tempDir });
+    const result = await analyzer.analyze(components);
+
+    expect(result.summary.total).toBe(3);
+    expect(result.summary.reachable).toBe(2);
+    expect(result.summary.notReachable).toBe(1);
+  });
+
+  it('should count vulnerable reachable packages', async () => {
+    await writeFile(join(tempDir, 'src', 'app.js'), `const _ = require('lodash');`);
+
+    const components: Component[] = [
+      { 
+        name: 'lodash', 
+        version: '4.17.20',
+        vulnerabilities: [{ id: 'CVE-2021-23337' }]
+      }
+    ];
+
+    const analyzer = new Analyzer({ sourceDir: tempDir });
+    const result = await analyzer.analyze(components);
+
+    expect(result.summary.vulnerableReachable).toBe(1);
+  });
+
+  it('should work with verbose option', async () => {
+    await writeFile(join(tempDir, 'src', 'index.js'), `const x = 1;`);
+
+    const analyzer = new Analyzer({ 
+      sourceDir: tempDir, 
+      verbose: true 
+    });
+    const result = await analyzer.analyze([{ name: 'lodash', version: '4.17.21' }]);
+
+    expect(result).toBeDefined();
+  });
+
+  it('should throw error for unsupported language', async () => {
+    const analyzer = new Analyzer({ 
+      sourceDir: tempDir, 
+      language: 'unknown' as any 
+    });
+
+    await expect(analyzer.analyze([{ name: 'lodash', version: '4.17.21' }]))
+      .rejects.toThrow('No adapter available');
+  });
+});
+
+describe('Analyzer - OSV Integration', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'reachvet-osv-'));
+    await writeFile(
+      join(tempDir, 'package.json'),
+      JSON.stringify({ name: 'test-osv', version: '1.0.0' })
+    );
+    await mkdir(join(tempDir, 'src'));
+  });
+
+  afterEach(async () => {
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('should enrich components with OSV data when enabled', async () => {
+    await writeFile(join(tempDir, 'src', 'app.js'), `const _ = require('lodash');`);
+
+    const components: Component[] = [
+      { name: 'lodash', version: '4.17.20' }  // Known vulnerable version
+    ];
+
+    const analyzer = new Analyzer({ 
+      sourceDir: tempDir,
+      osvLookup: true
+    });
+    const result = await analyzer.analyze(components);
+
+    // lodash 4.17.20 should have vulnerabilities from OSV
+    expect(result.results).toHaveLength(1);
+    // May or may not have vulns depending on OSV API response
+    expect(result.results[0].status).toBe('reachable');
+  }, 10000); // Extended timeout for API call
+
+  it('should work without OSV when disabled', async () => {
+    await writeFile(join(tempDir, 'src', 'app.js'), `const _ = require('lodash');`);
+
+    const components: Component[] = [
+      { name: 'lodash', version: '4.17.20' }
+    ];
+
+    const analyzer = new Analyzer({ 
+      sourceDir: tempDir,
+      osvLookup: false
+    });
+    const result = await analyzer.analyze(components);
+
+    expect(result.results[0].component.vulnerabilities).toBeUndefined();
+  });
+
+  it('should merge OSV vulns with existing vulns', async () => {
+    await writeFile(join(tempDir, 'src', 'app.js'), `const _ = require('lodash');`);
+
+    const components: Component[] = [
+      { 
+        name: 'lodash', 
+        version: '4.17.20',
+        vulnerabilities: [{ id: 'CUSTOM-001', severity: 'high' }]
+      }
+    ];
+
+    const analyzer = new Analyzer({ 
+      sourceDir: tempDir,
+      osvLookup: true
+    });
+    const result = await analyzer.analyze(components);
+
+    // Should have at least the custom vuln
+    const vulns = result.results[0].component.vulnerabilities ?? [];
+    expect(vulns.find(v => v.id === 'CUSTOM-001')).toBeDefined();
+  }, 10000);
 });

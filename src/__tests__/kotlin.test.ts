@@ -299,6 +299,52 @@ plugins {
       expect(detectKotlinVersion(content)).toBe('1.9.21');
     });
   });
+
+  describe('parseGradleKts - extended', () => {
+    it('should parse kapt and ksp configurations', () => {
+      const content = `
+dependencies {
+    kapt("com.google.dagger:hilt-compiler:2.48")
+    ksp("com.squareup.moshi:moshi-kotlin-codegen:1.15.0")
+}
+`;
+      const deps = parseGradleKts(content);
+      
+      expect(deps).toHaveLength(2);
+      expect(deps[0].configuration).toBe('kapt');
+      expect(deps[1].configuration).toBe('ksp');
+    });
+
+    it('should parse api configuration', () => {
+      const content = `
+dependencies {
+    api("com.squareup.retrofit2:retrofit:2.9.0")
+    compileOnly("javax.annotation:javax.annotation-api:1.3.2")
+    runtimeOnly("org.postgresql:postgresql:42.6.0")
+}
+`;
+      const deps = parseGradleKts(content);
+      
+      expect(deps).toHaveLength(3);
+      expect(deps[0].configuration).toBe('api');
+      expect(deps[1].configuration).toBe('compileOnly');
+      expect(deps[2].configuration).toBe('runtimeOnly');
+    });
+  });
+
+  describe('parseGradleGroovy - extended', () => {
+    it('should parse annotationProcessor', () => {
+      const content = `
+dependencies {
+    annotationProcessor 'com.google.dagger:dagger-compiler:2.48'
+}
+`;
+      const deps = parseGradleGroovy(content);
+      
+      expect(deps).toHaveLength(1);
+      expect(deps[0].configuration).toBe('annotationProcessor');
+    });
+  });
 });
 
 describe('KotlinAdapter', () => {
