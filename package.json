@@ -1,0 +1,55 @@
+{
+  "name": "reachvet",
+  "version": "0.1.0",
+  "description": "Supply chain reachability analyzer - Check if vulnerable dependencies are actually used in your code",
+  "main": "dist/index.js",
+  "bin": {
+    "reachvet": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/cli.js",
+    "test": "vitest",
+    "lint": "eslint src --ext .ts",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/taku-tez/ReachVet.git"
+  },
+  "keywords": [
+    "security",
+    "supply-chain",
+    "reachability",
+    "sbom",
+    "vulnerability",
+    "scanner",
+    "cli",
+    "sca"
+  ],
+  "author": "taku-tez",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/taku-tez/ReachVet/issues"
+  },
+  "homepage": "https://github.com/taku-tez/ReachVet#readme",
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+    "eslint": "^9.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0"
+  },
+  "dependencies": {
+    "commander": "^13.0.0",
+    "chalk": "^5.4.0",
+    "typescript": "^5.7.0",
+    "glob": "^11.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "type": "module"
+}
