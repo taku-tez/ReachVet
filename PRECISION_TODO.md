@@ -75,12 +75,14 @@ Status: ✅ Completed (2026-02-03 21:52)
 
 Status: ✅ Completed (2026-02-03 22:53)
 
-## Batch 7: CI/CD + npm publish準備 🟡 MED
-- GitHub Actions設定
-- npm publish workflow
-- README.md整備
+## Batch 7: CI/CD + npm publish準備 🟡 MED ✅ DONE
+- GitHub Actions設定 ✅
+  - ci.yml: Node 18/20/22でビルド、lint、テスト
+  - publish.yml: タグプッシュでnpm publish（provenance対応）
+- ESLint flat config追加 ✅
+- README.md: CIバッジ追加 ✅
 
-Status: ⬜ Not started
+Status: ✅ Completed (2026-02-03 23:54)
 
 ## Batch 8: OSV API統合（差別化機能）🔴 HIGH
 - OSV.dev API連携
@@ -97,3 +99,4 @@ Status: ⬜ Not started
 - Created TODO
 - Batch 1-5 completed
 - 22:53 Batch 6 SBOM強化完了 - 34 tests, 98 total
+- 23:54 Batch 7 CI/CD準備完了 - GitHub Actions, ESLint config
