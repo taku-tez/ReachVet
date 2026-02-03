@@ -20,6 +20,46 @@ export interface PythonImportInfo {
   importStyle: 'import' | 'from';
   // Location
   location: CodeLocation;
+  // Is inside try/except, if statement, or other conditional
+  isConditional?: boolean;
+}
+
+/**
+ * Check if a line is inside a conditional block (try/except, if)
+ */
+function isLineInConditionalBlock(lines: string[], currentLineIdx: number): boolean {
+  const currentLine = lines[currentLineIdx];
+  const currentIndent = currentLine.length - currentLine.trimStart().length;
+  
+  // If not indented at all, can't be in a conditional block
+  if (currentIndent === 0) return false;
+  
+  // Look backwards for try/except/if at a lower indentation level
+  for (let i = currentLineIdx - 1; i >= 0; i--) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    
+    const lineIndent = line.length - line.trimStart().length;
+    
+    // Found a line at lower indentation
+    if (lineIndent < currentIndent) {
+      // Check if it's a conditional block start
+      if (trimmed.startsWith('try:') || 
+          trimmed.startsWith('except') ||
+          trimmed.startsWith('if ') ||
+          trimmed.startsWith('elif ') ||
+          trimmed.startsWith('else:')) {
+        return true;
+      }
+      // If it's any other block at lower indent, we're not in a conditional
+      if (trimmed.endsWith(':')) {
+        return false;
+      }
+    }
+  }
+  
+  return false;
 }
 
 /**
@@ -202,6 +242,12 @@ export function parsePythonSource(source: string, file: string): PythonImportInf
         }
       }
     }
+  }
+
+  // Post-process: add isConditional flag based on context
+  for (const imp of imports) {
+    const lineIdx = imp.location.line - 1; // Convert to 0-based index
+    imp.isConditional = isLineInConditionalBlock(lines, lineIdx);
   }
 
   return imports;

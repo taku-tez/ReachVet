@@ -16,6 +16,8 @@ export interface ImportInfo {
   namedImports: string[];      // import { merge, clone } from 'lodash'
   localName?: string;          // The local binding name
   location: CodeLocation;
+  /** True if import is inside try/catch, if statement, or other conditional */
+  isConditional?: boolean;
 }
 
 export interface UsageInfo {
@@ -30,6 +32,35 @@ export interface UsageInfo {
 export async function parseFile(filePath: string): Promise<ImportInfo[]> {
   const content = await readFile(filePath, 'utf-8');
   return parseSource(content, filePath);
+}
+
+/**
+ * Check if a node is inside a conditional context (try/catch, if statement)
+ */
+function isInConditionalContext(node: ts.Node): boolean {
+  let current: ts.Node | undefined = node.parent;
+  while (current) {
+    // try { require('...') } catch {}
+    if (ts.isTryStatement(current)) {
+      return true;
+    }
+    // if (condition) { require('...') }
+    if (ts.isIfStatement(current)) {
+      return true;
+    }
+    // condition ? require('a') : require('b')
+    if (ts.isConditionalExpression(current)) {
+      return true;
+    }
+    // condition && require('...')
+    if (ts.isBinaryExpression(current) && 
+        (current.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
+         current.operatorToken.kind === ts.SyntaxKind.BarBarToken)) {
+      return true;
+    }
+    current = current.parent;
+  }
+  return false;
 }
 
 /**
@@ -133,13 +164,15 @@ export function parseSource(source: string, fileName: string = 'file.ts'): Impor
       if (ts.isIdentifier(expression) && expression.text === 'require') {
         const arg = node.arguments[0];
         if (arg && ts.isStringLiteral(arg)) {
+          const isConditional = isInConditionalContext(node);
           const info: ImportInfo = {
             moduleName: arg.text,
             importStyle: 'commonjs',
             isNamespaceImport: false,
             isDefaultImport: false,
             namedImports: [],
-            location: getLocation(node)
+            location: getLocation(node),
+            isConditional
           };
 
           // Check parent context for better analysis
@@ -195,13 +228,15 @@ export function parseSource(source: string, fileName: string = 'file.ts'): Impor
       if (expression.kind === ts.SyntaxKind.ImportKeyword) {
         const arg = node.arguments[0];
         if (arg && ts.isStringLiteral(arg)) {
+          const isConditional = isInConditionalContext(node);
           imports.push({
             moduleName: arg.text,
             importStyle: 'dynamic',
             isNamespaceImport: false,
             isDefaultImport: false,
             namedImports: [],
-            location: getLocation(node)
+            location: getLocation(node),
+            isConditional
           });
         }
       }

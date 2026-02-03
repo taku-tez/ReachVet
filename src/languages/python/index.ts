@@ -230,11 +230,19 @@ export class PythonAdapter extends BaseLanguageAdapter {
   /**
    * Generate warnings for analysis limitations
    */
-  private generateWarnings(_imports: PythonImportInfo[]): AnalysisWarning[] {
+  private generateWarnings(imports: PythonImportInfo[]): AnalysisWarning[] {
     const warnings: AnalysisWarning[] = [];
 
-    // Check for dynamic imports (exec, __import__, importlib)
-    // This would require source analysis, skip for now
+    // Check for conditional imports (try/except, if statements)
+    const conditionalImports = imports.filter(i => i.isConditional);
+    for (const imp of conditionalImports) {
+      warnings.push({
+        code: 'indirect_usage',
+        message: 'Conditional import detected (try/except or if statement) - may not always execute',
+        location: imp.location,
+        severity: 'info'
+      });
+    }
 
     return warnings;
   }

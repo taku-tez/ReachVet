@@ -274,6 +274,17 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
       });
     }
 
+    // Check for conditional imports (try/catch, if statements)
+    const conditionalImports = imports.filter(i => i.isConditional);
+    for (const imp of conditionalImports) {
+      warnings.push({
+        code: 'indirect_usage',
+        message: 'Conditional import detected (try/catch or if statement) - may not always execute',
+        location: imp.location,
+        severity: 'info'
+      });
+    }
+
     return warnings;
   }
 

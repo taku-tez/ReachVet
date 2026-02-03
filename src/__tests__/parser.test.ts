@@ -217,6 +217,57 @@ describe('Namespace usage tracking', () => {
   });
 });
 
+describe('Conditional imports', () => {
+  it('detects require in try/catch', () => {
+    const source = `
+      try {
+        const fs = require('fs');
+      } catch (e) {
+        console.error(e);
+      }
+    `;
+    const imports = parseSource(source);
+    
+    expect(imports).toHaveLength(1);
+    expect(imports[0].isConditional).toBe(true);
+  });
+
+  it('detects require in if statement', () => {
+    const source = `
+      if (process.env.NODE_ENV === 'development') {
+        const debug = require('debug');
+      }
+    `;
+    const imports = parseSource(source);
+    
+    expect(imports).toHaveLength(1);
+    expect(imports[0].isConditional).toBe(true);
+  });
+
+  it('detects conditional expression import', () => {
+    const source = `
+      const lib = condition ? require('lib-a') : require('lib-b');
+    `;
+    const imports = parseSource(source);
+    
+    expect(imports).toHaveLength(2);
+    expect(imports[0].isConditional).toBe(true);
+    expect(imports[1].isConditional).toBe(true);
+  });
+
+  it('marks top-level imports as non-conditional', () => {
+    const source = `
+      const lodash = require('lodash');
+      import express from 'express';
+    `;
+    const imports = parseSource(source);
+    
+    expect(imports).toHaveLength(2);
+    expect(imports[0].isConditional).toBeFalsy();
+    expect(imports[1].isConditional).toBeFalsy();
+  });
+});
+
 describe('Edge cases', () => {
   it('handles nested destructuring', () => {
     const source = `const { a: { b } } = require('complex');`;
