@@ -125,6 +125,11 @@ export class Analyzer {
       (adapter as { setIgnorePatterns(patterns: string[]): void }).setIgnorePatterns(this.options.ignorePatterns);
     }
 
+    // Pass concurrency option to adapter if specified
+    if (this.options.concurrency && 'setConcurrency' in adapter) {
+      (adapter as { setConcurrency(limit: number): void }).setConcurrency(this.options.concurrency);
+    }
+
     // Check if adapter can handle this directory
     const canHandle = await adapter.canHandle(this.options.sourceDir);
     if (!canHandle) {

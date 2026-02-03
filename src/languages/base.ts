@@ -4,6 +4,7 @@
 
 import { glob } from 'glob';
 import { readFile } from 'node:fs/promises';
+import pLimit from 'p-limit';
 import type { LanguageAdapter, SupportedLanguage, Component, ComponentResult, AnalysisWarning, CodeLocation, UsageInfo } from '../types.js';
 
 /** Options passed to adapter analyze method */
@@ -11,6 +12,7 @@ export interface AdapterOptions {
   ignorePatterns?: string[];
   concurrency?: number;
   verbose?: boolean;
+  includeDevDependencies?: boolean;
 }
 
 /**
@@ -22,12 +24,22 @@ export abstract class BaseLanguageAdapter implements LanguageAdapter {
   
   /** Patterns to ignore when searching for source files */
   protected ignorePatterns: string[] = ['**/node_modules/**', '**/.git/**'];
+  
+  /** Concurrency limit for file parsing */
+  protected concurrency: number = 10;
 
   /** 
    * Set additional ignore patterns (merged with defaults)
    */
   setIgnorePatterns(patterns: string[]): void {
     this.ignorePatterns = [...new Set([...this.ignorePatterns, ...patterns])];
+  }
+
+  /**
+   * Set concurrency limit for parallel file processing
+   */
+  setConcurrency(limit: number): void {
+    this.concurrency = Math.max(1, limit);
   }
 
   abstract analyze(sourceDir: string, components: Component[], options?: AdapterOptions): Promise<ComponentResult[]>;
@@ -136,6 +148,7 @@ export abstract class BaseLanguageAdapter implements LanguageAdapter {
 
   /**
    * Read and parse all source files, returning only those with imports
+   * Uses concurrency limit for parallel processing
    */
   protected async parseSourceFiles<T>(
     sourceDir: string,
@@ -143,21 +156,24 @@ export abstract class BaseLanguageAdapter implements LanguageAdapter {
     customIgnore?: string[]
   ): Promise<Array<{ file: string; imports: T[]; source: string }>> {
     const files = await this.findSourceFiles(sourceDir, customIgnore);
-    const result: Array<{ file: string; imports: T[]; source: string }> = [];
+    const limit = pLimit(this.concurrency);
 
-    for (const file of files) {
+    const tasks = files.map(file => limit(async () => {
       try {
         const content = await readFile(file, 'utf-8');
         const imports = parseFunc(content, file);
         if (imports.length > 0) {
-          result.push({ file, imports, source: content });
+          return { file, imports, source: content };
         }
+        return null;
       } catch {
         // Skip files that can't be parsed
+        return null;
       }
-    }
+    }));
 
-    return result;
+    const results = await Promise.all(tasks);
+    return results.filter((r): r is { file: string; imports: T[]; source: string } => r !== null);
   }
 
   /**
