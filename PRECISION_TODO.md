@@ -63,6 +63,19 @@ Status: ✅ Completed (2026-02-03 21:52)
 - Total: 64 tests passing
 - Core JS module coverage: 82.89%
 
+## Batch 16: C#/.NET言語サポート ✅ DONE
+- using/using static/using alias/global using パーサー ✅
+- .csproj (SDK-style) パーサー ✅
+- packages.config (legacy) パーサー ✅
+- 45+ NuGet package→namespaceマッピング ✅
+- System/BCL namespace検出 ✅
+
+Status: ✅ Completed (2026-02-04 07:07)
+- src/languages/csharp/parser.ts
+- src/languages/csharp/nuget.ts
+- src/languages/csharp/index.ts
+- 20 new tests
+
 ## Batch 15: PHP言語サポート ✅ DONE
 - use/use function/use const パーサー ✅
 - grouped use statements対応 ✅
