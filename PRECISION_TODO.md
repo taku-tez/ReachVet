@@ -63,9 +63,31 @@ Status: ✅ Completed (2026-02-03 21:52)
 - Total: 64 tests passing
 - Core JS module coverage: 82.89%
 
+## Batch 6: SBOM入力サポート強化 🟡 MED
+- CycloneDX JSON完全対応
+- SPDX JSON対応
+- パーサーテスト追加
+
+Status: ⬜ Not started
+
+## Batch 7: CI/CD + npm publish準備 🟡 MED
+- GitHub Actions設定
+- npm publish workflow
+- README.md整備
+
+Status: ⬜ Not started
+
+## Batch 8: OSV API統合（差別化機能）🔴 HIGH
+- OSV.dev API連携
+- 脆弱関数の自動取得
+- キャッシュ機能
+
+Status: ⬜ Not started
+
 ---
 
 ## Progress Log
 
 ### 2026-02-03
 - Created TODO
+- Batch 1-5 completed
