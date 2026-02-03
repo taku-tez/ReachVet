@@ -9,7 +9,7 @@ import chalk from 'chalk';
 import { Analyzer, OSVClient } from './core/analyzer.js';
 import { parseSimpleJson, parseFromStdin, parseSBOM } from './input/index.js';
 import { listSupportedLanguages, detectLanguage } from './languages/index.js';
-import { toSarif } from './output/index.js';
+import { toSarif, toHtml, toMarkdown } from './output/index.js';
 import type { Component, ComponentResult, AnalysisOutput } from './types.js';
 
 const VERSION = '0.2.0';
@@ -33,6 +33,9 @@ program
   .option('-v, --verbose', 'Show progress')
   .option('--pretty', 'Pretty print JSON output')
   .option('--sarif', 'Output in SARIF format (for GitHub Code Scanning)')
+  .option('--html [file]', 'Output as standalone HTML report')
+  .option('--markdown [file]', 'Output as Markdown report')
+  .option('--dark', 'Use dark mode for HTML report')
   .option('--osv', 'Fetch vulnerability data from OSV.dev')
   .option('--osv-cache <dir>', 'OSV cache directory')
   .option('--osv-ttl <seconds>', 'OSV cache TTL in seconds', parseInt)
@@ -89,6 +92,28 @@ program
           ? JSON.stringify(sarif, null, 2)
           : JSON.stringify(sarif);
         console.log(json);
+      } else if (options.html) {
+        const html = toHtml(output, { darkMode: options.dark, interactive: true, includeChart: true });
+        if (typeof options.html === 'string') {
+          const fs = await import('node:fs/promises');
+          await fs.writeFile(options.html, html);
+          if (options.verbose) {
+            console.error(chalk.green(`HTML report written to ${options.html}`));
+          }
+        } else {
+          console.log(html);
+        }
+      } else if (options.markdown) {
+        const md = toMarkdown(output, { includeDetails: true, includeWarnings: true });
+        if (typeof options.markdown === 'string') {
+          const fs = await import('node:fs/promises');
+          await fs.writeFile(options.markdown, md);
+          if (options.verbose) {
+            console.error(chalk.green(`Markdown report written to ${options.markdown}`));
+          }
+        } else {
+          console.log(md);
+        }
       } else {
         const json = options.pretty
           ? JSON.stringify(output, null, 2)
@@ -120,6 +145,9 @@ program
   .option('-l, --language <lang>', 'Language (javascript, typescript)')
   .option('--json', 'Output as JSON instead')
   .option('--sarif', 'Output in SARIF format (for GitHub Code Scanning)')
+  .option('--html [file]', 'Output as standalone HTML report')
+  .option('--markdown [file]', 'Output as Markdown report')
+  .option('--dark', 'Use dark mode for HTML report')
   .option('--osv', 'Fetch vulnerability data from OSV.dev')
   .option('--osv-cache <dir>', 'OSV cache directory')
   .option('--osv-ttl <seconds>', 'OSV cache TTL in seconds', parseInt)
@@ -158,6 +186,30 @@ program
       if (options.sarif) {
         const sarif = toSarif(output);
         console.log(JSON.stringify(sarif, null, 2));
+        return;
+      }
+
+      if (options.html) {
+        const html = toHtml(output, { darkMode: options.dark, interactive: true, includeChart: true });
+        if (typeof options.html === 'string') {
+          const fs = await import('node:fs/promises');
+          await fs.writeFile(options.html, html);
+          console.log(chalk.green(`HTML report written to ${options.html}`));
+        } else {
+          console.log(html);
+        }
+        return;
+      }
+
+      if (options.markdown) {
+        const md = toMarkdown(output, { includeDetails: true, includeWarnings: true });
+        if (typeof options.markdown === 'string') {
+          const fs = await import('node:fs/promises');
+          await fs.writeFile(options.markdown, md);
+          console.log(chalk.green(`Markdown report written to ${options.markdown}`));
+        } else {
+          console.log(md);
+        }
         return;
       }
 

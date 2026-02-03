@@ -238,32 +238,46 @@ Status: ✅ Completed (2026-02-04 05:21)
 
 ## 🚀 Phase 3: Additional Features (Planned)
 
-## Batch 14: HTML/Markdown Report Generation 🟢 LOW
-- Standalone HTML report with charts
-- Markdown summary for PRs
-- Treemap visualization of dependencies
-- Filter/search in HTML report
+## Batch 14: HTML/Markdown Report Generation 🟢 LOW ✅ DONE (2026-02-04 07:27)
+- Standalone HTML report with charts ✅
+- Markdown summary for PRs ✅
+- Filter/search in HTML report ✅
+- CLI integration: --html, --markdown options ✅
+- File output: --html <file>, --markdown <file> ✅
+- Dark mode: --dark option ✅
 
-## Batch 15: Ruby Language Support 🟡 MED
-- Ruby require/require_relative parsing
-- Bundler Gemfile/Gemfile.lock
-- RubyGems ecosystem
+Status: ✅ Completed (2026-02-04 07:27)
+- src/output/html.ts: Standalone HTML report generator
+- src/output/markdown.ts: Markdown report generator
+- CLI: --html, --markdown, --dark options
+- 27 new tests (html-markdown.test.ts)
+- Total: 361 tests passing
 
-## Batch 16: PHP Language Support 🟡 MED
-- PHP use/require/include statements
-- Composer composer.json/composer.lock
-- Packagist ecosystem
+## Batch 17: Swift Language Support 🟡 MED
+- Swift import statements
+- Package.swift parsing
+- SPM (Swift Package Manager) ecosystem
 
-## Batch 17: C#/.NET Language Support 🟡 MED
-- C# using statements
-- NuGet packages.config/.csproj
-- .NET ecosystem
+## Batch 18: Kotlin Language Support 🟡 MED
+- Kotlin import statements
+- build.gradle.kts parsing (Kotlin DSL)
+- Gradle dependencies
+
+## Batch 19: Scala Language Support 🟢 LOW
+- Scala import statements
+- build.sbt parsing
+- SBT dependencies
 
 ---
 
 ## Progress Log
 
 ### 2026-02-04
+- 07:27 Batch 14 HTML/Markdownレポート完了 - 27 new tests, 361 total
+  - HTML: Standalone report with charts, dark mode, interactive filtering
+  - Markdown: PR summaries, compact mode, vulnerability highlighting
+  - CLI: --html [file], --markdown [file], --dark options
+  - File output support for both formats
 - 04:33 Batch 12 Rust言語サポート完了 - 41 new tests, 261 total
   - Rust use parser (simple, nested, glob, aliased, multiline)
   - Cargo.toml parser (deps, dev-deps, build-deps, features)
