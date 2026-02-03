@@ -110,10 +110,41 @@ Status: ✅ Completed (2026-02-04 02:04)
 - 33 new tests (python-parser.test.ts, python-adapter.test.ts)
 - Total: 146 tests passing
 
-## Batch 10: Go Language Support 🟡 MED
-- Go import解析
-- go.mod 対応
-- package aliasing
+## Batch 10: Go Language Support 🟡 MED ✅ DONE
+- Go import解析 ✅
+  - 単一/グループ/エイリアス/ドット/ブランクimport
+  - inline grouped imports
+- go.mod 対応 ✅
+  - module名, goバージョン
+  - require (ブロック, 単行)
+  - indirect dependencies
+  - replace directives
+- package aliasing ✅
+- package.Function() パターン検出 ✅
+- 標準ライブラリ判定 ✅
+- モジュール名抽出 (GitHub, golang.org, gopkg.in対応) ✅
+
+Status: ✅ Completed (2026-02-04 03:12)
+- New files: src/languages/go/{parser,index}.ts
+- 35 new tests (go-parser.test.ts, go-adapter.test.ts)
+- Total: 181 tests passing
+
+## Batch 11: Java Language Support 🟡 MED
+- Java import解析
+  - `import pkg.Class;`
+  - `import pkg.*;` (wildcard)
+  - `import static pkg.Class.method;`
+- pom.xml / build.gradle 対応
+- Package-to-artifact mapping
+
+Status: ⬜ Not started
+
+## Batch 12: Rust Language Support 🟡 MED
+- Rust use解析
+  - `use crate::module;`
+  - `use pkg::*;` (glob)
+  - `use pkg::{a, b, c};` (nested)
+- Cargo.toml 対応
 
 Status: ⬜ Not started
 
@@ -122,6 +153,11 @@ Status: ⬜ Not started
 ## Progress Log
 
 ### 2026-02-04
+- 03:12 Batch 10 Go言語サポート完了 - 35 new tests, 181 total
+  - Go import parser (single, grouped, aliased, dot, blank)
+  - go.mod parser (module, deps, replace)
+  - Package usage detection
+  - Standard library detection
 - 02:04 Batch 9 Python言語サポート完了 - 33 new tests, 146 total
   - Python import parser (all import styles)
   - Package alias mapping (Pillow→PIL, PyYAML→yaml)
