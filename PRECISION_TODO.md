@@ -63,6 +63,20 @@ Status: ✅ Completed (2026-02-03 21:52)
 - Total: 64 tests passing
 - Core JS module coverage: 82.89%
 
+## Batch 15: PHP言語サポート ✅ DONE
+- use/use function/use const パーサー ✅
+- grouped use statements対応 ✅
+- require/include対応 ✅
+- composer.json/lock パーサー ✅
+- 35+ package→namespaceマッピング ✅
+- ビルトインクラス検出 ✅
+
+Status: ✅ Completed (2026-02-04 06:43)
+- src/languages/php/parser.ts
+- src/languages/php/composer.ts
+- src/languages/php/index.ts
+- 17 new tests
+
 ## Batch 14: Ruby言語サポート ✅ DONE
 - require/require_relative パーサー ✅
 - autoload, Bundler.require対応 ✅
