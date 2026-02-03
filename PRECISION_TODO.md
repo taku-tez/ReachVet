@@ -84,16 +84,33 @@ Status: ✅ Completed (2026-02-03 22:53)
 
 Status: ✅ Completed (2026-02-03 23:54)
 
-## Batch 8: OSV API統合（差別化機能）🔴 HIGH
-- OSV.dev API連携
-- 脆弱関数の自動取得
-- キャッシュ機能
+## Batch 8: OSV API統合（差別化機能）🔴 HIGH ✅ DONE
+- OSV.dev API連携 ✅
+- 脆弱関数の自動取得 ✅
+- キャッシュ機能 ✅
+- バッチクエリ対応 ✅
+- CLIコマンド追加: `osv-lookup`, `osv-cache` ✅
+- `--osv` フラグで解析時に自動取得 ✅
+
+Status: ✅ Completed (2026-02-04 00:59)
+
+## Batch 9: Python Language Support 🟡 MED
+- Python import解析
+- requirements.txt / pyproject.toml 対応
+- from xxx import yyy 追跡
 
 Status: ⬜ Not started
 
 ---
 
 ## Progress Log
+
+### 2026-02-04
+- 00:59 Batch 8 OSV API統合完了 - 15 tests, 113 total
+  - OSVClient: query, queryBatch, getVulnerability
+  - OSVCache: file-based caching with TTL
+  - CLI: osv-lookup, osv-cache commands
+  - --osv flag for analyze/check commands
 
 ### 2026-02-03
 - Created TODO

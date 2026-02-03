@@ -5,19 +5,31 @@
 import type {
   Component,
   ComponentResult,
+  ComponentVulnerability,
   AnalysisOutput,
   AnalysisSummary,
   AnalyzeOptions,
   SupportedLanguage
 } from '../types.js';
 import { getAdapter, detectLanguage } from '../languages/index.js';
+import { OSVClient } from '../osv/index.js';
+import type { OSVClientOptions, VulnerableFunctionInfo } from '../osv/index.js';
 
-const VERSION = '0.1.0';
+const VERSION = '0.2.0';
+
+export interface EnrichedAnalyzeOptions extends AnalyzeOptions {
+  /** Enable OSV vulnerability lookup */
+  osvLookup?: boolean;
+  /** OSV client options */
+  osvOptions?: OSVClientOptions;
+}
 
 export class Analyzer {
   private options: Required<AnalyzeOptions>;
+  private osvClient?: OSVClient;
+  private osvLookup: boolean;
 
-  constructor(options: AnalyzeOptions) {
+  constructor(options: EnrichedAnalyzeOptions) {
     this.options = {
       sourceDir: options.sourceDir,
       language: options.language ?? 'javascript',
@@ -25,6 +37,66 @@ export class Analyzer {
       verbose: options.verbose ?? false,
       includeDevDependencies: options.includeDevDependencies ?? false,
       ignorePatterns: options.ignorePatterns ?? []
+    };
+    
+    this.osvLookup = options.osvLookup ?? false;
+    if (this.osvLookup) {
+      this.osvClient = new OSVClient(options.osvOptions);
+    }
+  }
+
+  /**
+   * Enrich components with vulnerability data from OSV
+   */
+  private async enrichWithOSV(components: Component[]): Promise<Component[]> {
+    if (!this.osvClient) return components;
+
+    const packages = components.map(c => ({
+      ecosystem: c.ecosystem ?? 'npm',
+      name: c.name,
+      version: c.version,
+    }));
+
+    if (this.options.verbose) {
+      console.error(`Fetching vulnerability data from OSV for ${packages.length} packages...`);
+    }
+
+    const vulnMap = await this.osvClient.queryBatch(packages);
+
+    return components.map(c => {
+      const ecosystem = c.ecosystem ?? 'npm';
+      const key = `${ecosystem}:${c.name}:${c.version}`;
+      const osvVulns = vulnMap.get(key) ?? [];
+
+      if (osvVulns.length === 0) return c;
+
+      // Convert OSV vulnerabilities to component vulnerabilities
+      const vulnerabilities: ComponentVulnerability[] = osvVulns.map(vuln => {
+        const info = this.osvClient!.extractVulnerableFunctions(vuln);
+        return this.vulnInfoToComponentVuln(info);
+      });
+
+      // Merge with existing vulnerabilities
+      const existingIds = new Set(c.vulnerabilities?.map(v => v.id) ?? []);
+      const newVulns = vulnerabilities.filter(v => !existingIds.has(v.id));
+
+      return {
+        ...c,
+        vulnerabilities: [...(c.vulnerabilities ?? []), ...newVulns],
+      };
+    });
+  }
+
+  /**
+   * Convert VulnerableFunctionInfo to ComponentVulnerability
+   */
+  private vulnInfoToComponentVuln(info: VulnerableFunctionInfo): ComponentVulnerability {
+    return {
+      id: info.vulnId,
+      severity: info.severity,
+      affectedFunctions: info.functions.length > 0 ? info.functions : undefined,
+      fixedVersion: info.fixedVersion,
+      description: info.description,
     };
   }
 
@@ -54,13 +126,23 @@ export class Analyzer {
       throw new Error(`Adapter for ${language} cannot handle directory: ${this.options.sourceDir}`);
     }
 
+    // Enrich with OSV data if enabled
+    let enrichedComponents = components;
+    if (this.osvLookup) {
+      enrichedComponents = await this.enrichWithOSV(components);
+    }
+
     if (this.options.verbose) {
-      console.error(`Analyzing ${components.length} components in ${this.options.sourceDir}`);
+      console.error(`Analyzing ${enrichedComponents.length} components in ${this.options.sourceDir}`);
       console.error(`Language: ${language}`);
+      if (this.osvLookup) {
+        const withVulns = enrichedComponents.filter(c => c.vulnerabilities?.length).length;
+        console.error(`Packages with vulnerabilities (from OSV): ${withVulns}`);
+      }
     }
 
     // Run analysis
-    const results = await adapter.analyze(this.options.sourceDir, components);
+    const results = await adapter.analyze(this.options.sourceDir, enrichedComponents);
 
     // Calculate summary
     const summary = this.calculateSummary(results);
@@ -110,8 +192,14 @@ export class Analyzer {
 export async function quickAnalyze(
   sourceDir: string,
   components: Component[],
-  options?: Partial<AnalyzeOptions>
+  options?: Partial<EnrichedAnalyzeOptions>
 ): Promise<AnalysisOutput> {
   const analyzer = new Analyzer({ sourceDir, ...options });
   return analyzer.analyze(components);
 }
+
+/**
+ * Export OSVClient for direct usage
+ */
+export { OSVClient } from '../osv/index.js';
+export type { OSVClientOptions } from '../osv/index.js';
