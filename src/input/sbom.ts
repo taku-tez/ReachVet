@@ -14,7 +14,9 @@ interface CycloneDXComponent {
   name: string;
   version: string;
   purl?: string;
+  'bom-ref'?: string;
   licenses?: Array<{ license?: { id?: string; name?: string } }>;
+  components?: CycloneDXComponent[]; // Nested components
 }
 
 interface CycloneDXVulnerability {
@@ -25,11 +27,17 @@ interface CycloneDXVulnerability {
   description?: string;
 }
 
+interface CycloneDXDependency {
+  ref: string;
+  dependsOn?: string[];
+}
+
 interface CycloneDXBom {
   bomFormat?: string;
   specVersion?: string;
   components?: CycloneDXComponent[];
   vulnerabilities?: CycloneDXVulnerability[];
+  dependencies?: CycloneDXDependency[];
 }
 
 // ============================================================
@@ -48,14 +56,39 @@ interface SPDXPackage {
   licenseConcluded?: string;
 }
 
+interface SPDXRelationship {
+  spdxElementId: string;
+  relatedSpdxElement: string;
+  relationshipType: string;
+}
+
 interface SPDXDocument {
   spdxVersion?: string;
   packages?: SPDXPackage[];
+  relationships?: SPDXRelationship[];
 }
 
 // ============================================================
 // Parsers
 // ============================================================
+
+/**
+ * Flatten nested CycloneDX components recursively
+ */
+function flattenCycloneDXComponents(components: CycloneDXComponent[]): CycloneDXComponent[] {
+  const result: CycloneDXComponent[] = [];
+  
+  for (const comp of components) {
+    result.push(comp);
+    
+    // Recursively flatten nested components
+    if (comp.components && comp.components.length > 0) {
+      result.push(...flattenCycloneDXComponents(comp.components));
+    }
+  }
+  
+  return result;
+}
 
 /**
  * Parse CycloneDX SBOM
@@ -70,7 +103,7 @@ export function parseCycloneDX(content: string): Component[] {
   const components: Component[] = [];
   const vulnMap = new Map<string, ComponentVulnerability[]>();
 
-  // Build vulnerability map by purl/ref
+  // Build vulnerability map by purl/ref (supports both purl and bom-ref)
   if (bom.vulnerabilities) {
     for (const vuln of bom.vulnerabilities) {
       const vulnInfo: ComponentVulnerability = {
@@ -89,8 +122,18 @@ export function parseCycloneDX(content: string): Component[] {
     }
   }
 
-  // Parse components
-  for (const comp of bom.components ?? []) {
+  // Build dependency map if present
+  const dependencyMap = new Map<string, string[]>();
+  if (bom.dependencies) {
+    for (const dep of bom.dependencies) {
+      dependencyMap.set(dep.ref, dep.dependsOn ?? []);
+    }
+  }
+
+  // Flatten and parse components (handles nested components)
+  const flatComponents = flattenCycloneDXComponents(bom.components ?? []);
+  
+  for (const comp of flatComponents) {
     const component: Component = {
       name: comp.name,
       version: comp.version,
@@ -99,9 +142,21 @@ export function parseCycloneDX(content: string): Component[] {
       license: comp.licenses?.[0]?.license?.id ?? comp.licenses?.[0]?.license?.name
     };
 
-    // Attach vulnerabilities if any
+    // Attach vulnerabilities by purl
     if (comp.purl && vulnMap.has(comp.purl)) {
       component.vulnerabilities = vulnMap.get(comp.purl);
+    }
+    
+    // Also check bom-ref for vulnerability matching
+    if (comp['bom-ref'] && vulnMap.has(comp['bom-ref']) && !component.vulnerabilities) {
+      component.vulnerabilities = vulnMap.get(comp['bom-ref']);
+    }
+
+    // Attach dependencies if present (as metadata for future use)
+    const bomRef = comp['bom-ref'] ?? comp.purl;
+    if (bomRef && dependencyMap.has(bomRef)) {
+      // Store in component for downstream analysis
+      (component as Component & { dependsOn?: string[] }).dependsOn = dependencyMap.get(bomRef);
     }
 
     components.push(component);
@@ -120,6 +175,32 @@ export function parseSPDX(content: string): Component[] {
     throw new Error('Not a valid SPDX document');
   }
 
+  // Build SPDXID -> package index
+  const packageBySpdxId = new Map<string, SPDXPackage>();
+  for (const pkg of doc.packages ?? []) {
+    if (pkg.SPDXID) {
+      packageBySpdxId.set(pkg.SPDXID, pkg);
+    }
+  }
+
+  // Build dependency map from relationships (DEPENDS_ON, DEPENDENCY_OF)
+  const dependencyMap = new Map<string, string[]>();
+  if (doc.relationships) {
+    for (const rel of doc.relationships) {
+      if (rel.relationshipType === 'DEPENDS_ON') {
+        // A DEPENDS_ON B means A depends on B
+        const deps = dependencyMap.get(rel.spdxElementId) ?? [];
+        deps.push(rel.relatedSpdxElement);
+        dependencyMap.set(rel.spdxElementId, deps);
+      } else if (rel.relationshipType === 'DEPENDENCY_OF') {
+        // A DEPENDENCY_OF B means B depends on A
+        const deps = dependencyMap.get(rel.relatedSpdxElement) ?? [];
+        deps.push(rel.spdxElementId);
+        dependencyMap.set(rel.relatedSpdxElement, deps);
+      }
+    }
+  }
+
   const components: Component[] = [];
 
   for (const pkg of doc.packages ?? []) {
@@ -135,6 +216,22 @@ export function parseSPDX(content: string): Component[] {
       ecosystem: extractEcosystem(purlRef?.referenceLocator),
       license: pkg.licenseConcluded
     };
+
+    // Attach dependencies if present
+    if (pkg.SPDXID && dependencyMap.has(pkg.SPDXID)) {
+      const depSpdxIds = dependencyMap.get(pkg.SPDXID)!;
+      // Resolve SPDXID to package names/purls for downstream use
+      const resolvedDeps = depSpdxIds
+        .map(id => {
+          const depPkg = packageBySpdxId.get(id);
+          if (depPkg) {
+            const depPurl = depPkg.externalRefs?.find(r => r.referenceType === 'purl')?.referenceLocator;
+            return depPurl ?? `${depPkg.name}@${depPkg.versionInfo ?? 'unknown'}`;
+          }
+          return id;
+        });
+      (component as Component & { dependsOn?: string[] }).dependsOn = resolvedDeps;
+    }
 
     components.push(component);
   }

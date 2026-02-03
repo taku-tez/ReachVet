@@ -63,12 +63,17 @@ Status: ✅ Completed (2026-02-03 21:52)
 - Total: 64 tests passing
 - Core JS module coverage: 82.89%
 
-## Batch 6: SBOM入力サポート強化 🟡 MED
-- CycloneDX JSON完全対応
-- SPDX JSON対応
-- パーサーテスト追加
+## Batch 6: SBOM入力サポート強化 🟡 MED ✅ DONE
+- CycloneDX JSON完全対応 ✅
+  - nested components (再帰的にフラット化) ✅
+  - bom-ref による脆弱性マッチング ✅
+  - dependencies グラフ対応 ✅
+- SPDX JSON対応 ✅
+  - relationships 対応 (DEPENDS_ON, DEPENDENCY_OF) ✅
+  - purl による依存関係解決 ✅
+- パーサーテスト追加 ✅ (34 tests)
 
-Status: ⬜ Not started
+Status: ✅ Completed (2026-02-03 22:53)
 
 ## Batch 7: CI/CD + npm publish準備 🟡 MED
 - GitHub Actions設定
@@ -91,3 +96,4 @@ Status: ⬜ Not started
 ### 2026-02-03
 - Created TODO
 - Batch 1-5 completed
+- 22:53 Batch 6 SBOM強化完了 - 34 tests, 98 total
