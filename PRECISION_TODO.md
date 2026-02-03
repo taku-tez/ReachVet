@@ -129,15 +129,25 @@ Status: ✅ Completed (2026-02-04 03:12)
 - 35 new tests (go-parser.test.ts, go-adapter.test.ts)
 - Total: 181 tests passing
 
-## Batch 11: Java Language Support 🟡 MED
-- Java import解析
-  - `import pkg.Class;`
-  - `import pkg.*;` (wildcard)
-  - `import static pkg.Class.method;`
-- pom.xml / build.gradle 対応
-- Package-to-artifact mapping
+## Batch 11: Java Language Support 🟡 MED ✅ DONE
+- Java import解析 ✅
+  - `import pkg.Class;` ✅
+  - `import pkg.*;` (wildcard) ✅
+  - `import static pkg.Class.method;` ✅
+  - `import static pkg.Class.*;` (static wildcard) ✅
+- pom.xml / build.gradle 対応 ✅
+  - Maven pom.xml parsing (dependencies, project info) ✅
+  - Gradle build.gradle (Groovy DSL) ✅
+  - Gradle build.gradle.kts (Kotlin DSL) ✅
+- Package-to-artifact mapping ✅
+  - 40+ common Java packages mapped (Apache Commons, Google, Spring, etc.)
+  - Standard library detection ✅
+  - Fallback pattern-based extraction ✅
 
-Status: ⬜ Not started
+Status: ✅ Completed (2026-02-04 04:17)
+- New files: src/languages/java/{parser,index}.ts
+- 39 new tests (java-parser.test.ts, java-adapter.test.ts)
+- Total: 220 tests passing
 
 ## Batch 12: Rust Language Support 🟡 MED
 - Rust use解析
@@ -153,6 +163,15 @@ Status: ⬜ Not started
 ## Progress Log
 
 ### 2026-02-04
+- 04:17 Batch 11 Java言語サポート完了 - 39 new tests, 220 total
+  - Java import parser (regular, wildcard, static, static wildcard)
+  - Maven pom.xml parser (dependencies, project info)
+  - Gradle build.gradle parser (Groovy & Kotlin DSL)
+  - Package-to-artifact mapping (40+ packages)
+  - Class usage detection (methods, fields, constructors, types)
+  - Vulnerable function reachability detection
+
+### 2026-02-04 (earlier)
 - 03:12 Batch 10 Go言語サポート完了 - 35 new tests, 181 total
   - Go import parser (single, grouped, aliased, dot, blank)
   - go.mod parser (module, deps, replace)
