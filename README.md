@@ -1,5 +1,9 @@
 # ReachVet 🎯
 
+[![CI](https://github.com/taku-tez/ReachVet/actions/workflows/ci.yml/badge.svg)](https://github.com/taku-tez/ReachVet/actions/workflows/ci.yml)
+[![npm version](https://badge.fury.io/js/reachvet.svg)](https://www.npmjs.com/package/reachvet)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **Supply Chain Reachability Analyzer**
 
 ReachVet checks if your dependencies are actually used in your code. Given a list of components (from SBOM or simple JSON), it analyzes your source code to determine which are imported and used.
