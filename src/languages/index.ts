@@ -15,6 +15,7 @@ import { swiftAdapter } from './swift/index.js';
 import { kotlinAdapter } from './kotlin/index.js';
 import { scalaAdapter } from './scala/index.js';
 import { elixirAdapter } from './elixir/index.js';
+import { dartAdapter } from './dart/index.js';
 
 // Create adapter instances
 const goAdapter = createGoAdapter();
@@ -36,6 +37,7 @@ const adapters = new Map<SupportedLanguage, LanguageAdapter>([
   ['kotlin', kotlinAdapter as LanguageAdapter],
   ['scala', scalaAdapter as LanguageAdapter],
   ['elixir', elixirAdapter as LanguageAdapter],
+  ['dart', dartAdapter as LanguageAdapter],
 ]);
 
 /**
@@ -89,3 +91,4 @@ export { swiftAdapter } from './swift/index.js';
 export { kotlinAdapter } from './kotlin/index.js';
 export { scalaAdapter } from './scala/index.js';
 export { elixirAdapter } from './elixir/index.js';
+export { dartAdapter } from './dart/index.js';
