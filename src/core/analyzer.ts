@@ -25,14 +25,14 @@ export interface EnrichedAnalyzeOptions extends AnalyzeOptions {
 }
 
 export class Analyzer {
-  private options: Required<AnalyzeOptions>;
+  private options: Omit<Required<AnalyzeOptions>, 'language'> & { language?: SupportedLanguage };
   private osvClient?: OSVClient;
   private osvLookup: boolean;
 
   constructor(options: EnrichedAnalyzeOptions) {
     this.options = {
       sourceDir: options.sourceDir,
-      language: options.language ?? 'javascript',
+      language: options.language, // undefined allows auto-detection
       concurrency: options.concurrency ?? 10,
       verbose: options.verbose ?? false,
       includeDevDependencies: options.includeDevDependencies ?? false,
@@ -118,6 +118,11 @@ export class Analyzer {
     const adapter = getAdapter(language);
     if (!adapter) {
       throw new Error(`No adapter available for language: ${language}`);
+    }
+
+    // Pass custom ignore patterns to adapter if specified
+    if (this.options.ignorePatterns.length > 0 && 'setIgnorePatterns' in adapter) {
+      (adapter as { setIgnorePatterns(patterns: string[]): void }).setIgnorePatterns(this.options.ignorePatterns);
     }
 
     // Check if adapter can handle this directory

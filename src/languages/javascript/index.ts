@@ -143,7 +143,25 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
     }
 
     // Check if component is accessed via re-export chain
-    const reexportInfo = reexportedModules.get(component.name);
+    // Support both exact match (lodash) and subpath match (lodash/merge)
+    let reexportInfo = reexportedModules.get(component.name);
+    
+    // If not found by exact match, try to find by prefix (for subpath imports like lodash/merge)
+    if (!reexportInfo) {
+      for (const [moduleName, info] of reexportedModules) {
+        // Check if component.name starts with moduleName (e.g., "lodash/merge" starts with "lodash")
+        if (component.name.startsWith(moduleName + '/')) {
+          reexportInfo = info;
+          break;
+        }
+        // Check if moduleName starts with component.name (e.g., "lodash/merge" when component is "lodash")
+        if (moduleName.startsWith(component.name + '/')) {
+          reexportInfo = info;
+          break;
+        }
+      }
+    }
+    
     const isReexported = !!reexportInfo;
 
     // Handle type-only imports: they don't exist at runtime

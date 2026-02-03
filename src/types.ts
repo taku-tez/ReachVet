@@ -77,7 +77,20 @@ export interface UsageInfo {
  * Warning about analysis limitations
  */
 export interface AnalysisWarning {
-  code: 'dynamic_import' | 'eval_detected' | 'indirect_usage' | 'namespace_import' | 'barrel_file' | 'circular_reexport' | 'max_depth_reached' | 'star_import' | 'dot_import' | 'blank_import';
+  code: 
+    | 'dynamic_import' 
+    | 'eval_detected' 
+    | 'indirect_usage' 
+    | 'namespace_import' 
+    | 'barrel_file' 
+    | 'circular_reexport' 
+    | 'max_depth_reached' 
+    | 'star_import' 
+    | 'dot_import' 
+    | 'blank_import'
+    | 'type_only_import'    // TypeScript type-only imports (no runtime dependency)
+    | 'side_effect_import'  // Side-effect only imports (import 'polyfill')
+    | 'unused_import';      // Imported but never used in code
   message: string;
   location?: CodeLocation;
   severity: 'info' | 'warning';

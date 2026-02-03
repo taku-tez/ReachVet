@@ -6,7 +6,8 @@
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { Analyzer, OSVClient } from './core/analyzer.js';
+import { Analyzer } from './core/analyzer.js';
+import { OSVClient } from './osv/index.js';
 import { parseSimpleJson, parseFromStdin, parseSBOM } from './input/index.js';
 import { listSupportedLanguages, detectLanguage } from './languages/index.js';
 import { toSarif } from './output/index.js';

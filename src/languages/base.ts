@@ -6,6 +6,13 @@ import { glob } from 'glob';
 import { readFile } from 'node:fs/promises';
 import type { LanguageAdapter, SupportedLanguage, Component, ComponentResult, AnalysisWarning, CodeLocation, UsageInfo } from '../types.js';
 
+/** Options passed to adapter analyze method */
+export interface AdapterOptions {
+  ignorePatterns?: string[];
+  concurrency?: number;
+  verbose?: boolean;
+}
+
 /**
  * Abstract base class for language adapters
  */
@@ -16,7 +23,14 @@ export abstract class BaseLanguageAdapter implements LanguageAdapter {
   /** Patterns to ignore when searching for source files */
   protected ignorePatterns: string[] = ['**/node_modules/**', '**/.git/**'];
 
-  abstract analyze(sourceDir: string, components: Component[]): Promise<ComponentResult[]>;
+  /** 
+   * Set additional ignore patterns (merged with defaults)
+   */
+  setIgnorePatterns(patterns: string[]): void {
+    this.ignorePatterns = [...new Set([...this.ignorePatterns, ...patterns])];
+  }
+
+  abstract analyze(sourceDir: string, components: Component[], options?: AdapterOptions): Promise<ComponentResult[]>;
   abstract canHandle(sourceDir: string): Promise<boolean>;
 
   /**

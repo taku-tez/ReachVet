@@ -248,22 +248,42 @@ export class OSVClient {
     let fixedVersion: string | undefined;
     let severity: 'critical' | 'high' | 'medium' | 'low' | 'unknown' = 'unknown';
 
-    // Extract severity from CVSS
+    // Extract severity from multiple sources (in order of preference)
+    // 1. CVSS score from severity field
+    // 2. database_specific severity
+    // 3. CVSS vector string parsing
+    
     if (vuln.severity && vuln.severity.length > 0) {
-      const cvss = vuln.severity[0].score;
-      // Parse CVSS score (simplified)
-      const scoreMatch = cvss.match(/CVSS:\d\.\d\/AV:[\w]+\/AC:[\w]+\/.*?\/(\d+\.\d+)/);
-      if (scoreMatch) {
-        const score = parseFloat(scoreMatch[1]);
-        if (score >= 9.0) severity = 'critical';
-        else if (score >= 7.0) severity = 'high';
-        else if (score >= 4.0) severity = 'medium';
-        else if (score > 0) severity = 'low';
+      for (const sev of vuln.severity) {
+        // Try to extract numeric score directly (e.g., "9.8" or "CVSS:3.1/...Score:9.8")
+        const numericMatch = sev.score.match(/(\d+\.?\d*)/);
+        if (numericMatch) {
+          const score = parseFloat(numericMatch[1]);
+          // CVSS scores are 0-10, filter out unlikely values
+          if (score >= 0 && score <= 10) {
+            if (score >= 9.0) { severity = 'critical'; break; }
+            else if (score >= 7.0) { severity = 'high'; break; }
+            else if (score >= 4.0) { severity = 'medium'; break; }
+            else if (score > 0) { severity = 'low'; break; }
+          }
+        }
       }
-      // Alternative: Try to extract base score directly
-      const baseMatch = cvss.match(/(\d+\.\d+)$/);
-      if (baseMatch && severity === 'unknown') {
-        const score = parseFloat(baseMatch[1]);
+    }
+
+    // Fallback: Check database_specific for severity info
+    if (severity === 'unknown' && vuln.database_specific) {
+      const dbSpecific = vuln.database_specific as Record<string, unknown>;
+      // GitHub Advisory format
+      if (dbSpecific.severity && typeof dbSpecific.severity === 'string') {
+        const sev = dbSpecific.severity.toLowerCase();
+        if (sev === 'critical') severity = 'critical';
+        else if (sev === 'high') severity = 'high';
+        else if (sev === 'moderate' || sev === 'medium') severity = 'medium';
+        else if (sev === 'low') severity = 'low';
+      }
+      // CVSS score in database_specific
+      if (typeof dbSpecific.cvss_score === 'number') {
+        const score = dbSpecific.cvss_score;
         if (score >= 9.0) severity = 'critical';
         else if (score >= 7.0) severity = 'high';
         else if (score >= 4.0) severity = 'medium';
