@@ -77,7 +77,7 @@ export interface UsageInfo {
  * Warning about analysis limitations
  */
 export interface AnalysisWarning {
-  code: 'dynamic_import' | 'eval_detected' | 'indirect_usage' | 'namespace_import' | 'barrel_file' | 'circular_reexport' | 'max_depth_reached';
+  code: 'dynamic_import' | 'eval_detected' | 'indirect_usage' | 'namespace_import' | 'barrel_file' | 'circular_reexport' | 'max_depth_reached' | 'star_import';
   message: string;
   location?: CodeLocation;
   severity: 'info' | 'warning';

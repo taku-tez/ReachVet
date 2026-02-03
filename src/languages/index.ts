@@ -4,11 +4,13 @@
 
 import type { LanguageAdapter, SupportedLanguage } from '../types.js';
 import { javascriptAdapter } from './javascript/index.js';
+import { pythonAdapter } from './python/index.js';
 
 // Registry of all language adapters
-const adapters: Map<SupportedLanguage, LanguageAdapter> = new Map([
-  ['javascript', javascriptAdapter],
-  ['typescript', javascriptAdapter],  // Same adapter handles both
+const adapters = new Map<SupportedLanguage, LanguageAdapter>([
+  ['javascript', javascriptAdapter as LanguageAdapter],
+  ['typescript', javascriptAdapter as LanguageAdapter],  // Same adapter handles both
+  ['python', pythonAdapter as LanguageAdapter],
 ]);
 
 /**
@@ -47,4 +49,5 @@ export function listSupportedLanguages(): SupportedLanguage[] {
 
 // Export adapters
 export { javascriptAdapter } from './javascript/index.js';
+export { pythonAdapter } from './python/index.js';
 export { BaseLanguageAdapter } from './base.js';

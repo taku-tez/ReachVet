@@ -94,10 +94,26 @@ Status: ✅ Completed (2026-02-03 23:54)
 
 Status: ✅ Completed (2026-02-04 00:59)
 
-## Batch 9: Python Language Support 🟡 MED
-- Python import解析
-- requirements.txt / pyproject.toml 対応
-- from xxx import yyy 追跡
+## Batch 9: Python Language Support 🟡 MED ✅ DONE
+- Python import解析 ✅
+  - `import X`, `import X as Y`
+  - `from X import a, b, c`
+  - `from X import *` (star imports with warnings)
+  - Multi-line imports (parentheses, backslash)
+  - Submodule imports (urllib.parse, etc.)
+- Package alias mapping ✅ (Pillow→PIL, PyYAML→yaml, etc.)
+- requirements.txt / pyproject.toml 検出 ✅
+- Function usage tracking ✅ (module.func() patterns)
+
+Status: ✅ Completed (2026-02-04 02:04)
+- New files: src/languages/python/{parser,detector,index}.ts
+- 33 new tests (python-parser.test.ts, python-adapter.test.ts)
+- Total: 146 tests passing
+
+## Batch 10: Go Language Support 🟡 MED
+- Go import解析
+- go.mod 対応
+- package aliasing
 
 Status: ⬜ Not started
 
@@ -106,6 +122,11 @@ Status: ⬜ Not started
 ## Progress Log
 
 ### 2026-02-04
+- 02:04 Batch 9 Python言語サポート完了 - 33 new tests, 146 total
+  - Python import parser (all import styles)
+  - Package alias mapping (Pillow→PIL, PyYAML→yaml)
+  - Function usage tracking
+  - Integration tests with temp project
 - 00:59 Batch 8 OSV API統合完了 - 15 tests, 113 total
   - OSVClient: query, queryBatch, getVulnerability
   - OSVCache: file-based caching with TTL
