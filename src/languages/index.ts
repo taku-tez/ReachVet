@@ -5,12 +5,17 @@
 import type { LanguageAdapter, SupportedLanguage } from '../types.js';
 import { javascriptAdapter } from './javascript/index.js';
 import { pythonAdapter } from './python/index.js';
+import { createGoAdapter } from './go/index.js';
+
+// Create Go adapter instance
+const goAdapter = createGoAdapter();
 
 // Registry of all language adapters
 const adapters = new Map<SupportedLanguage, LanguageAdapter>([
   ['javascript', javascriptAdapter as LanguageAdapter],
   ['typescript', javascriptAdapter as LanguageAdapter],  // Same adapter handles both
   ['python', pythonAdapter as LanguageAdapter],
+  ['go', goAdapter as LanguageAdapter],
 ]);
 
 /**
@@ -50,4 +55,6 @@ export function listSupportedLanguages(): SupportedLanguage[] {
 // Export adapters
 export { javascriptAdapter } from './javascript/index.js';
 export { pythonAdapter } from './python/index.js';
+export { goAdapter } from './go/index.js';
 export { BaseLanguageAdapter } from './base.js';
+export { GoLanguageAdapter, createGoAdapter, parseGoModFile } from './go/index.js';
