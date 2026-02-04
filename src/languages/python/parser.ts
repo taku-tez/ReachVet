@@ -291,3 +291,59 @@ export function findModuleUsages(
 export function normalizePackageName(name: string): string {
   return name.toLowerCase().replace(/-/g, '_');
 }
+
+/**
+ * Dynamic import detection result
+ */
+export interface DynamicImportWarning {
+  type: '__import__' | 'importlib' | 'exec';
+  location: CodeLocation;
+  module?: string; // If detectable
+}
+
+/**
+ * Detect dynamic imports in Python code
+ */
+export function detectDynamicImports(source: string, file: string): DynamicImportWarning[] {
+  const warnings: DynamicImportWarning[] = [];
+  const lines = source.split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineNum = i + 1;
+    const trimmed = line.trim();
+
+    // Skip comments
+    if (trimmed.startsWith('#')) continue;
+
+    // __import__('module')
+    const dunderMatch = trimmed.match(/__import__\s*\(\s*['"]([^'"]+)['"]/);
+    if (dunderMatch) {
+      warnings.push({
+        type: '__import__',
+        location: { file, line: lineNum, snippet: trimmed.slice(0, 100) },
+        module: dunderMatch[1]
+      });
+    }
+
+    // importlib.import_module('module')
+    const importlibMatch = trimmed.match(/importlib\.import_module\s*\(\s*['"]([^'"]+)['"]/);
+    if (importlibMatch) {
+      warnings.push({
+        type: 'importlib',
+        location: { file, line: lineNum, snippet: trimmed.slice(0, 100) },
+        module: importlibMatch[1]
+      });
+    }
+
+    // exec() with import
+    if (trimmed.includes('exec(') && trimmed.includes('import')) {
+      warnings.push({
+        type: 'exec',
+        location: { file, line: lineNum, snippet: trimmed.slice(0, 100) }
+      });
+    }
+  }
+
+  return warnings;
+}

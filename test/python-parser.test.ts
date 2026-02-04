@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { parsePythonSource, findModuleUsages, normalizePackageName } from '../src/languages/python/parser.js';
+import { parsePythonSource, findModuleUsages, normalizePackageName, detectDynamicImports } from '../src/languages/python/parser.js';
 import { matchesComponent, extractUsedMembers, getPrimaryImportStyle, detectDangerousPatterns } from '../src/languages/python/detector.js';
 import type { Component } from '../src/types.js';
 
@@ -266,5 +266,41 @@ describe('Python Detector', () => {
       expect(warnings).toHaveLength(1);
       expect(warnings[0]).toContain('Star import');
     });
+  });
+});
+
+// Dynamic import detection tests
+describe('detectDynamicImports', () => {
+  it('should detect __import__', () => {
+    const source = `
+module = __import__('requests')
+`;
+    const warnings = detectDynamicImports(source, 'test.py');
+    
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].type).toBe('__import__');
+    expect(warnings[0].module).toBe('requests');
+  });
+
+  it('should detect importlib.import_module', () => {
+    const source = `
+import importlib
+mod = importlib.import_module('numpy')
+`;
+    const warnings = detectDynamicImports(source, 'test.py');
+    
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].type).toBe('importlib');
+    expect(warnings[0].module).toBe('numpy');
+  });
+
+  it('should detect exec with import', () => {
+    const source = `
+exec("import os")
+`;
+    const warnings = detectDynamicImports(source, 'test.py');
+    
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].type).toBe('exec');
   });
 });
