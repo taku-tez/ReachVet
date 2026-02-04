@@ -11,6 +11,7 @@ import {
   findClassUsages,
   extractArtifactFromPackage,
   isJavaStandardLibrary,
+  detectReflection,
   MAVEN_ARTIFACT_ALIASES
 } from '../src/languages/java/parser.js';
 
@@ -403,5 +404,41 @@ describe('MAVEN_ARTIFACT_ALIASES', () => {
     expect(MAVEN_ARTIFACT_ALIASES['gson']).toBe('com.google.code.gson:gson');
     expect(MAVEN_ARTIFACT_ALIASES['junit']).toBe('junit:junit');
     expect(MAVEN_ARTIFACT_ALIASES['guava']).toBe('com.google.guava:guava');
+  });
+});
+
+// Reflection detection tests
+describe('detectReflection', () => {
+  it('should detect Class.forName', () => {
+    const source = `
+Class<?> cls = Class.forName("com.example.MyClass");
+`;
+    const warnings = detectReflection(source, 'Test.java');
+    
+    expect(warnings.length).toBeGreaterThan(0);
+    expect(warnings[0].type).toBe('Class.forName');
+    expect(warnings[0].className).toBe('com.example.MyClass');
+  });
+
+  it('should detect newInstance', () => {
+    const source = `
+Object obj = cls.newInstance();
+`;
+    const warnings = detectReflection(source, 'Test.java');
+    
+    expect(warnings.length).toBeGreaterThan(0);
+    expect(warnings[0].type).toBe('newInstance');
+  });
+
+  it('should detect getMethod and invoke', () => {
+    const source = `
+Method m = cls.getMethod("doSomething", String.class);
+m.invoke(instance, "arg");
+`;
+    const warnings = detectReflection(source, 'Test.java');
+    
+    expect(warnings).toHaveLength(2);
+    expect(warnings[0].type).toBe('getMethod');
+    expect(warnings[1].type).toBe('invoke');
   });
 });

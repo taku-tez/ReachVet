@@ -503,3 +503,76 @@ export const MAVEN_ARTIFACT_ALIASES: Record<string, string> = {
   // Other
   'lombok': 'org.projectlombok:lombok',
 };
+
+/**
+ * Dynamic class loading detection result
+ */
+export interface ReflectionWarning {
+  type: 'Class.forName' | 'loadClass' | 'newInstance' | 'getMethod' | 'invoke';
+  location: CodeLocation;
+  className?: string; // If detectable from string literal
+}
+
+/**
+ * Detect reflection/dynamic class loading in Java code
+ */
+export function detectReflection(source: string, file: string): ReflectionWarning[] {
+  const warnings: ReflectionWarning[] = [];
+  const lines = source.split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineNum = i + 1;
+    const trimmed = line.trim();
+
+    // Skip comments
+    if (trimmed.startsWith('//') || trimmed.startsWith('*')) continue;
+
+    // Class.forName("className")
+    const forNameMatch = trimmed.match(/Class\.forName\s*\(\s*"([^"]+)"/);
+    if (forNameMatch) {
+      warnings.push({
+        type: 'Class.forName',
+        location: { file, line: lineNum, snippet: trimmed.slice(0, 100) },
+        className: forNameMatch[1]
+      });
+    }
+
+    // .loadClass("className")
+    const loadClassMatch = trimmed.match(/\.loadClass\s*\(\s*"([^"]+)"/);
+    if (loadClassMatch) {
+      warnings.push({
+        type: 'loadClass',
+        location: { file, line: lineNum, snippet: trimmed.slice(0, 100) },
+        className: loadClassMatch[1]
+      });
+    }
+
+    // .newInstance()
+    if (trimmed.includes('.newInstance()')) {
+      warnings.push({
+        type: 'newInstance',
+        location: { file, line: lineNum, snippet: trimmed.slice(0, 100) }
+      });
+    }
+
+    // .getMethod("methodName"
+    const getMethodMatch = trimmed.match(/\.getMethod\s*\(\s*"([^"]+)"/);
+    if (getMethodMatch) {
+      warnings.push({
+        type: 'getMethod',
+        location: { file, line: lineNum, snippet: trimmed.slice(0, 100) }
+      });
+    }
+
+    // .invoke(
+    if (trimmed.includes('.invoke(')) {
+      warnings.push({
+        type: 'invoke',
+        location: { file, line: lineNum, snippet: trimmed.slice(0, 100) }
+      });
+    }
+  }
+
+  return warnings;
+}
