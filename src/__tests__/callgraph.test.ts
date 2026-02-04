@@ -104,6 +104,47 @@ describe('analyzeCallGraph', () => {
   });
 });
 
+describe('dynamic code detection', () => {
+  it('should detect direct eval', () => {
+    const source = `eval('console.log("hello")');`;
+    const result = analyzeCallGraph(source);
+    
+    expect(result.dynamicCodeWarnings).toHaveLength(1);
+    expect(result.dynamicCodeWarnings[0].type).toBe('eval');
+  });
+
+  it('should detect Function constructor', () => {
+    const source = `const fn = new Function('return 42');`;
+    const result = analyzeCallGraph(source);
+    
+    expect(result.dynamicCodeWarnings).toHaveLength(1);
+    expect(result.dynamicCodeWarnings[0].type).toBe('Function');
+  });
+
+  it('should detect setTimeout with string', () => {
+    const source = `setTimeout('alert("hello")', 1000);`;
+    const result = analyzeCallGraph(source);
+    
+    expect(result.dynamicCodeWarnings).toHaveLength(1);
+    expect(result.dynamicCodeWarnings[0].type).toBe('setTimeout_string');
+  });
+
+  it('should detect indirect eval', () => {
+    const source = `(0, eval)('code');`;
+    const result = analyzeCallGraph(source);
+    
+    expect(result.dynamicCodeWarnings).toHaveLength(1);
+    expect(result.dynamicCodeWarnings[0].type).toBe('indirect_eval');
+  });
+
+  it('should not warn for setTimeout with function', () => {
+    const source = `setTimeout(() => console.log('hi'), 1000);`;
+    const result = analyzeCallGraph(source);
+    
+    expect(result.dynamicCodeWarnings).toHaveLength(0);
+  });
+});
+
 describe('checkImportedMembersCalled', () => {
   it('should categorize imported members', () => {
     const source = `

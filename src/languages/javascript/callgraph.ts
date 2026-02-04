@@ -22,6 +22,15 @@ export interface CallInfo {
   isMethodCall: boolean;
 }
 
+export interface DynamicCodeWarning {
+  /** Type of dynamic code */
+  type: 'eval' | 'Function' | 'indirect_eval' | 'setTimeout_string' | 'setInterval_string';
+  /** Location */
+  location: CodeLocation;
+  /** Additional context */
+  context?: string;
+}
+
 export interface CallGraphResult {
   /** All function/method calls found */
   calls: CallInfo[];
@@ -29,6 +38,8 @@ export interface CallGraphResult {
   references: Set<string>;
   /** Functions that are called */
   calledFunctions: Set<string>;
+  /** Dynamic code execution warnings */
+  dynamicCodeWarnings: DynamicCodeWarning[];
 }
 
 /**
@@ -38,6 +49,7 @@ export function analyzeCallGraph(source: string, fileName: string = 'file.ts'): 
   const calls: CallInfo[] = [];
   const references = new Set<string>();
   const calledFunctions = new Set<string>();
+  const dynamicCodeWarnings: DynamicCodeWarning[] = [];
 
   const sourceFile = ts.createSourceFile(
     fileName,
@@ -94,6 +106,15 @@ export function analyzeCallGraph(source: string, fileName: string = 'file.ts'): 
           isConstructor: true,
           isMethodCall: false
         });
+        
+        // Detect new Function()
+        if (callee === 'Function') {
+          dynamicCodeWarnings.push({
+            type: 'Function',
+            location: getLocation(node),
+            context: 'Function constructor - runtime code execution'
+          });
+        }
       } else if (ts.isPropertyAccessExpression(expr)) {
         const callee = expr.name.text;
         const obj = ts.isIdentifier(expr.expression) ? expr.expression.text : undefined;
@@ -169,6 +190,56 @@ export function analyzeCallGraph(source: string, fileName: string = 'file.ts'): 
           });
         }
       }
+
+      // Detect dynamic code execution
+      if (ts.isIdentifier(expr)) {
+        const callee = expr.text;
+        
+        // Direct eval()
+        if (callee === 'eval') {
+          dynamicCodeWarnings.push({
+            type: 'eval',
+            location: getLocation(node),
+            context: 'Direct eval() call - runtime code execution'
+          });
+        }
+        
+        // new Function()
+        if (callee === 'Function') {
+          dynamicCodeWarnings.push({
+            type: 'Function',
+            location: getLocation(node),
+            context: 'Function constructor - runtime code execution'
+          });
+        }
+        
+        // setTimeout/setInterval with string argument
+        if ((callee === 'setTimeout' || callee === 'setInterval') && node.arguments.length > 0) {
+          const firstArg = node.arguments[0];
+          if (ts.isStringLiteral(firstArg) || ts.isTemplateExpression(firstArg)) {
+            dynamicCodeWarnings.push({
+              type: callee === 'setTimeout' ? 'setTimeout_string' : 'setInterval_string',
+              location: getLocation(node),
+              context: `${callee} with string argument - runtime code execution`
+            });
+          }
+        }
+      }
+      
+      // Indirect eval: (0, eval)() or window.eval()
+      if (ts.isParenthesizedExpression(expr)) {
+        const inner = expr.expression;
+        if (ts.isBinaryExpression(inner) && inner.operatorToken.kind === ts.SyntaxKind.CommaToken) {
+          const right = inner.right;
+          if (ts.isIdentifier(right) && right.text === 'eval') {
+            dynamicCodeWarnings.push({
+              type: 'indirect_eval',
+              location: getLocation(node),
+              context: 'Indirect eval - global scope code execution'
+            });
+          }
+        }
+      }
     }
 
     ts.forEachChild(node, visit);
@@ -176,7 +247,7 @@ export function analyzeCallGraph(source: string, fileName: string = 'file.ts'): 
 
   visit(sourceFile);
 
-  return { calls, references, calledFunctions };
+  return { calls, references, calledFunctions, dynamicCodeWarnings };
 }
 
 /**
