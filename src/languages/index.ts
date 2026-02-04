@@ -18,6 +18,7 @@ import { elixirAdapter } from './elixir/index.js';
 import { dartAdapter } from './dart/index.js';
 import { perlAdapter } from './perl/index.js';
 import { haskellAdapter } from './haskell/index.js';
+import { clojureAdapter } from './clojure/index.js';
 
 // Create adapter instances
 const goAdapter = createGoAdapter();
@@ -42,6 +43,7 @@ const adapters = new Map<SupportedLanguage, LanguageAdapter>([
   ['dart', dartAdapter as LanguageAdapter],
   ['perl', perlAdapter as LanguageAdapter],
   ['haskell', haskellAdapter as LanguageAdapter],
+  ['clojure', clojureAdapter as LanguageAdapter],
 ]);
 
 /**
@@ -116,3 +118,5 @@ export { elixirAdapter } from './elixir/index.js';
 export { dartAdapter } from './dart/index.js';
 export { perlAdapter } from './perl/index.js';
 export { haskellAdapter, HaskellLanguageAdapter, createHaskellAdapter, parseCabalFileFromPath, parseStackYamlFromPath } from './haskell/index.js';
+export { clojureAdapter, ClojureAdapter } from './clojure/index.js';
+export { parseSource as parseClojureSource, parseDepsEdn, parseProjectClj, parseDepsEdnContent, parseProjectCljContent, getNamespacesForPackage, isStandardNamespace } from './clojure/parser.js';

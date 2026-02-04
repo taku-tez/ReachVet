@@ -316,11 +316,20 @@ Status: ✅ Completed (2026-02-04 07:27)
   - Standard library detection
   - Module→package reverse mapping
 
-## Batch 25: Clojure Language Support 🟢 LOW
-- Clojure ns/require/import/use
-- deps.edn parsing
-- Leiningen project.clj support
-- Clojars package ecosystem
+## Batch 25: Clojure Language Support ✅ DONE (2026-02-04 12:41)
+- Clojure ns/require/import/use ✅
+- deps.edn parsing ✅
+- Leiningen project.clj support ✅
+- Clojars package ecosystem (70+ packages) ✅
+- Standard library detection ✅
+- Namespace→package mapping ✅
+- :refer :all warning ✅
+
+Status: ✅ Completed (2026-02-04 12:41)
+- src/languages/clojure/parser.ts: ns/require/use/import parsers, deps.edn, project.clj
+- src/languages/clojure/index.ts: ClojureAdapter
+- 33 new tests (clojure-parser.test.ts, clojure-adapter.test.ts)
+- Total: 653 tests passing
 
 ## Batch 26: --watch Mode 🟡 MED
 - File watcher for continuous analysis
@@ -343,6 +352,13 @@ Status: ✅ Completed (2026-02-04 07:27)
 ## Progress Log
 
 ### 2026-02-04
+- 12:41 Batch 25 Clojure言語サポート完了 - 33 new tests, 653 total
+  - src/languages/clojure/parser.ts: ns/require/use/import parsers
+  - src/languages/clojure/index.ts: ClojureAdapter
+  - deps.edn/project.clj parsing (balanced brace extraction)
+  - 70+ Clojars package→namespace mappings
+  - Standard library detection
+  - :refer :all warning support
 - 11:34 Batch 24 Haskell言語サポート完了 - 38 new tests, 620 total
   - src/languages/haskell/parser.ts: Import/Cabal/Stack parsers
   - src/languages/haskell/index.ts: HaskellLanguageAdapter

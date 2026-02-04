@@ -44,7 +44,7 @@ export interface ReachVetInput {
 // Analysis Types
 // ============================================================
 
-export type SupportedLanguage = 'javascript' | 'typescript' | 'python' | 'go' | 'java' | 'rust' | 'ruby' | 'php' | 'csharp' | 'swift' | 'kotlin' | 'scala' | 'elixir' | 'dart' | 'perl' | 'haskell';
+export type SupportedLanguage = 'javascript' | 'typescript' | 'python' | 'go' | 'java' | 'rust' | 'ruby' | 'php' | 'csharp' | 'swift' | 'kotlin' | 'scala' | 'elixir' | 'dart' | 'perl' | 'haskell' | 'clojure';
 
 export type ReachabilityStatus = 
   | 'reachable'         // Component is imported and used
@@ -90,7 +90,8 @@ export interface AnalysisWarning {
     | 'blank_import'
     | 'type_only_import'    // TypeScript type-only imports (no runtime dependency)
     | 'side_effect_import'  // Side-effect only imports (import 'polyfill')
-    | 'unused_import';      // Imported but never used in code
+    | 'unused_import'       // Imported but never used in code
+    | 'refer_all_import';   // Clojure :refer :all or use (imports all symbols)
   message: string;
   location?: CodeLocation;
   severity: 'info' | 'warning';
