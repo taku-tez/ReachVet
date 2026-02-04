@@ -172,3 +172,20 @@ export {
   type IgnoreConfig,
   type IgnorePattern
 } from './ignore/index.js';
+
+// Dependency freshness check
+export {
+  checkFreshness,
+  formatFreshnessResult,
+  formatFreshnessReport,
+  toFreshnessJson,
+  parseVersion,
+  compareVersions,
+  calculateVersionsBehind,
+  determineSeverity,
+  DEFAULT_REGISTRIES,
+  type VersionInfo,
+  type FreshnessResult,
+  type FreshnessReport,
+  type FreshnessOptions
+} from './freshness/index.js';

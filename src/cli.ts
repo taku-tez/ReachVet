@@ -1166,5 +1166,106 @@ program
     console.log(script);
   });
 
+// === freshness command ===
+program
+  .command('freshness')
+  .description('Check how up-to-date dependencies are')
+  .option('-c, --components <file>', 'JSON file with dependency list')
+  .option('--sbom <file>', 'SBOM file (CycloneDX or SPDX)')
+  .option('--stdin', 'Read dependency list from stdin')
+  .option('-e, --ecosystem <eco>', 'Filter by ecosystem (npm, pypi, cargo, go, rubygems, packagist, nuget, hex, pub)')
+  .option('--outdated-only', 'Only show outdated dependencies')
+  .option('--deprecated-only', 'Only show deprecated dependencies')
+  .option('--severity <level>', 'Minimum severity to show (minor, major, critical)', 'minor')
+  .option('--json', 'Output as JSON')
+  .option('--concurrency <n>', 'Concurrent registry requests', parseInt, 10)
+  .option('--timeout <ms>', 'Request timeout in milliseconds', parseInt, 10000)
+  .option('-v, --verbose', 'Show progress')
+  .action(async (options) => {
+    const { checkFreshness, formatFreshnessReport, toFreshnessJson } = await import('./freshness/index.js');
+
+    try {
+      // Load dependencies
+      let components: Component[];
+
+      if (options.stdin) {
+        components = await parseFromStdin();
+      } else if (options.sbom) {
+        components = await parseSBOM(options.sbom);
+      } else if (options.components) {
+        components = await parseSimpleJson(options.components);
+      } else {
+        console.error(chalk.red('Error: Provide --components, --sbom, or --stdin'));
+        process.exit(1);
+      }
+
+      if (components.length === 0) {
+        console.error(chalk.red('Error: No dependencies to check'));
+        process.exit(1);
+      }
+
+      // Convert to Dependency type
+      const deps = components.map(c => ({
+        name: c.name,
+        version: c.version,
+        ecosystem: c.ecosystem || 'npm',
+      }));
+
+      // Filter by ecosystem if specified
+      const filteredDeps = options.ecosystem
+        ? deps.filter(d => d.ecosystem === options.ecosystem)
+        : deps;
+
+      if (filteredDeps.length === 0) {
+        console.error(chalk.yellow(`No dependencies found for ecosystem: ${options.ecosystem}`));
+        process.exit(0);
+      }
+
+      if (options.verbose) {
+        console.error(chalk.cyan(`ReachVet v${VERSION} - Freshness Check`));
+        console.error(chalk.gray(`Checking ${filteredDeps.length} dependencies...`));
+      }
+
+      // Check freshness
+      const report = await checkFreshness(filteredDeps, {
+        concurrency: options.concurrency,
+        timeout: options.timeout,
+      });
+
+      // Filter results if requested
+      if (options.outdatedOnly) {
+        report.results = report.results.filter(r => r.isOutdated);
+      } else if (options.deprecatedOnly) {
+        report.results = report.results.filter(r => r.isDeprecated);
+      } else if (options.severity) {
+        const severityOrder = ['minor', 'major', 'critical'];
+        const minIndex = severityOrder.indexOf(options.severity);
+        if (minIndex >= 0) {
+          report.results = report.results.filter(r => {
+            if (r.severity === 'current') return false;
+            return severityOrder.indexOf(r.severity) >= minIndex;
+          });
+        }
+      }
+
+      // Output
+      if (options.json) {
+        console.log(toFreshnessJson(report));
+      } else {
+        console.log(formatFreshnessReport(report));
+      }
+
+      // Exit code: 1 if critical/deprecated found
+      const hasCritical = report.results.some(r => r.severity === 'critical' || r.isDeprecated);
+      if (hasCritical) {
+        process.exit(1);
+      }
+    } catch (err) {
+      const error = err as Error;
+      console.error(chalk.red(`Error: ${error.message}`));
+      process.exit(1);
+    }
+  });
+
 // Run CLI
 program.parse();

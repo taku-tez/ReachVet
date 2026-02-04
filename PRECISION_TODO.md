@@ -544,6 +544,39 @@ Status: ✅ Completed (2026-02-04 13:48)
 - 35 new tests ✅
 - Total: 1015 tests passing (v0.5.6) ✅
 
+## Batch 43: Dependency Freshness Check ✅ DONE (2026-02-05 01:57)
+- src/freshness/index.ts: Multi-ecosystem freshness checker ✅
+  - Version parsing (semver, prerelease, v-prefix) ✅
+  - Version comparison and calculation ✅
+  - Severity determination (current, minor, major, critical) ✅
+  - Registry API integrations (9 ecosystems) ✅
+    - npm (registry.npmjs.org) ✅
+    - PyPI (pypi.org) ✅
+    - Cargo (crates.io) ✅
+    - Go (proxy.golang.org) ✅
+    - RubyGems (rubygems.org) ✅
+    - Packagist (repo.packagist.org) ✅
+    - NuGet (api.nuget.org) ✅
+    - Hex (hex.pm) ✅
+    - Pub (pub.dev) ✅
+  - Deprecated package detection ✅
+  - Concurrency control for batch checks ✅
+  - Report formatting (text, JSON) ✅
+- CLI integration ✅
+  - `reachvet freshness` command ✅
+  - --components, --sbom, --stdin input options ✅
+  - --ecosystem filter ✅
+  - --outdated-only, --deprecated-only, --severity filters ✅
+  - --json output option ✅
+  - --concurrency, --timeout options ✅
+- Exported from main package ✅
+  - checkFreshness, formatFreshnessResult, formatFreshnessReport ✅
+  - toFreshnessJson, parseVersion, compareVersions ✅
+  - calculateVersionsBehind, determineSeverity, DEFAULT_REGISTRIES ✅
+  - Types: VersionInfo, FreshnessResult, FreshnessReport, FreshnessOptions ✅
+- 36 new tests (freshness.test.ts) ✅
+- Total: 1112 tests passing (v0.5.9) ✅
+
 ## Batch 42: JSON Schema for Configuration ✅ DONE (2026-02-05 00:58)
 - src/config/schema.ts: JSON Schema generator ✅
   - Draft-07 schema with full type definitions ✅
@@ -593,6 +626,13 @@ Status: ✅ Completed (2026-02-04 13:48)
 ## Progress Log
 
 ### 2026-02-05
+- 01:57 Batch 43 Dependency Freshness Check完了 - 36 new tests, 1112 total
+  - src/freshness/index.ts: Multi-ecosystem freshness checker
+  - 9 registry integrations (npm, PyPI, Cargo, Go, RubyGems, Packagist, NuGet, Hex, Pub)
+  - Version parsing, comparison, severity determination
+  - Deprecated package detection with messages
+  - CLI: `reachvet freshness` with filters and JSON output
+  - Exported from main package with full type definitions
 - 00:58 Batch 42 JSON Schema for Configuration完了 - 23 new tests, 1076 total
   - src/config/schema.ts: JSON Schema generator (Draft-07)
   - CLI: `reachvet schema` command, `reachvet init --schema` option
