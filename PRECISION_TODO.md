@@ -296,11 +296,25 @@ Status: ✅ Completed (2026-02-04 07:27)
 
 ## 🚀 Phase 4: Future Improvements (Planned)
 
-## Batch 24: Haskell Language Support 🟢 LOW
-- Haskell import statements
-- .cabal file parsing
-- stack.yaml support
-- Hackage package ecosystem
+## Batch 24: Haskell Language Support ✅ DONE (2026-02-04 11:34)
+- Haskell import statements ✅
+  - Qualified imports (`import qualified M as Alias`)
+  - Explicit import lists (`import M (a, b, c)`)
+  - Hiding imports (`import M hiding (x, y)`)
+  - Multiline import lists
+  - Package imports (`import "pkg" Module`)
+- .cabal file parsing ✅
+  - name, version, exposed-modules
+  - build-depends from all sections
+  - Version constraints
+- stack.yaml support ✅
+  - resolver (lts/nightly)
+  - packages list
+  - extra-deps
+- Hackage package ecosystem ✅
+  - 45+ package→module mappings
+  - Standard library detection
+  - Module→package reverse mapping
 
 ## Batch 25: Clojure Language Support 🟢 LOW
 - Clojure ns/require/import/use
@@ -329,6 +343,12 @@ Status: ✅ Completed (2026-02-04 07:27)
 ## Progress Log
 
 ### 2026-02-04
+- 11:34 Batch 24 Haskell言語サポート完了 - 38 new tests, 620 total
+  - src/languages/haskell/parser.ts: Import/Cabal/Stack parsers
+  - src/languages/haskell/index.ts: HaskellLanguageAdapter
+  - 45+ Hackage package→module mappings
+  - Standard library detection (100+ base modules)
+  - Qualified import and namespace usage tracking
 - 09:42 Batch 27 GitHub Actions Integration完了 - 17 new tests, 582 total
   - action.yml: Standalone GitHub Action definition
   - src/output/annotations.ts: Annotation generator

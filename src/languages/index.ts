@@ -17,6 +17,7 @@ import { scalaAdapter } from './scala/index.js';
 import { elixirAdapter } from './elixir/index.js';
 import { dartAdapter } from './dart/index.js';
 import { perlAdapter } from './perl/index.js';
+import { haskellAdapter } from './haskell/index.js';
 
 // Create adapter instances
 const goAdapter = createGoAdapter();
@@ -40,6 +41,7 @@ const adapters = new Map<SupportedLanguage, LanguageAdapter>([
   ['elixir', elixirAdapter as LanguageAdapter],
   ['dart', dartAdapter as LanguageAdapter],
   ['perl', perlAdapter as LanguageAdapter],
+  ['haskell', haskellAdapter as LanguageAdapter],
 ]);
 
 /**
@@ -113,3 +115,4 @@ export { scalaAdapter } from './scala/index.js';
 export { elixirAdapter } from './elixir/index.js';
 export { dartAdapter } from './dart/index.js';
 export { perlAdapter } from './perl/index.js';
+export { haskellAdapter, HaskellLanguageAdapter, createHaskellAdapter, parseCabalFileFromPath, parseStackYamlFromPath } from './haskell/index.js';

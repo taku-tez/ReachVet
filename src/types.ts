@@ -44,7 +44,7 @@ export interface ReachVetInput {
 // Analysis Types
 // ============================================================
 
-export type SupportedLanguage = 'javascript' | 'typescript' | 'python' | 'go' | 'java' | 'rust' | 'ruby' | 'php' | 'csharp' | 'swift' | 'kotlin' | 'scala' | 'elixir' | 'dart' | 'perl';
+export type SupportedLanguage = 'javascript' | 'typescript' | 'python' | 'go' | 'java' | 'rust' | 'ruby' | 'php' | 'csharp' | 'swift' | 'kotlin' | 'scala' | 'elixir' | 'dart' | 'perl' | 'haskell';
 
 export type ReachabilityStatus = 
   | 'reachable'         // Component is imported and used
