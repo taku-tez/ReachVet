@@ -109,3 +109,29 @@ export {
   type VEXStatement,
   type GraphOptions
 } from './output/index.js';
+
+// License compliance
+export {
+  normalizeLicense,
+  getLicenseInfo,
+  getLicenseCategory,
+  isCompatible,
+  checkComponent,
+  checkLicenseCompliance,
+  generateAttribution,
+  getKnownLicenses,
+  getLicenseCategories,
+  createPolicy,
+  PREDEFINED_POLICIES,
+  PERMISSIVE_POLICY,
+  OSI_APPROVED_POLICY,
+  NO_AGPL_POLICY,
+  COPYLEFT_AWARE_POLICY,
+  type LicenseInfo,
+  type LicenseCategory,
+  type LicensePolicy,
+  type PolicyRule,
+  type PolicyViolation,
+  type LicenseCheckResult,
+  type LicenseComplianceReport
+} from './license/index.js';
