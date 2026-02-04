@@ -563,3 +563,67 @@ export const RUST_CRATE_ALIASES: Record<string, string> = {
   'ring': 'ring',
   'rustls': 'rustls',
 };
+
+/**
+ * Unsafe code detection result
+ */
+export interface UnsafeWarning {
+  type: 'unsafe_block' | 'unsafe_fn' | 'unsafe_impl' | 'unsafe_trait';
+  location: CodeLocation;
+  context?: string;
+}
+
+/**
+ * Detect unsafe code patterns in Rust
+ */
+export function detectUnsafeCode(source: string, file: string): UnsafeWarning[] {
+  const warnings: UnsafeWarning[] = [];
+  const lines = source.split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const lineNum = i + 1;
+    const trimmed = line.trim();
+
+    // Skip comments
+    if (trimmed.startsWith('//')) continue;
+
+    // unsafe { ... }
+    if (/\bunsafe\s*\{/.test(trimmed)) {
+      warnings.push({
+        type: 'unsafe_block',
+        location: { file, line: lineNum, snippet: trimmed.slice(0, 100) },
+        context: 'Unsafe block - manual memory management'
+      });
+    }
+
+    // unsafe fn
+    if (/\bunsafe\s+fn\b/.test(trimmed)) {
+      warnings.push({
+        type: 'unsafe_fn',
+        location: { file, line: lineNum, snippet: trimmed.slice(0, 100) },
+        context: 'Unsafe function declaration'
+      });
+    }
+
+    // unsafe impl
+    if (/\bunsafe\s+impl\b/.test(trimmed)) {
+      warnings.push({
+        type: 'unsafe_impl',
+        location: { file, line: lineNum, snippet: trimmed.slice(0, 100) },
+        context: 'Unsafe trait implementation'
+      });
+    }
+
+    // unsafe trait
+    if (/\bunsafe\s+trait\b/.test(trimmed)) {
+      warnings.push({
+        type: 'unsafe_trait',
+        location: { file, line: lineNum, snippet: trimmed.slice(0, 100) },
+        context: 'Unsafe trait definition'
+      });
+    }
+  }
+
+  return warnings;
+}
