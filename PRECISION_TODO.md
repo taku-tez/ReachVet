@@ -357,11 +357,45 @@ Status: ✅ Completed (2026-02-04 13:48)
   - --annotations CLI flag
   - Error/Warning/Notice levels
 
+## Batch 28: (Merged with Batch 24 - Haskell already complete)
+
+## Batch 29: OCaml Language Support ✅ DONE (2026-02-04 14:55)
+- OCaml open/include statements ✅
+  - `open Module`, `open! Module`
+  - `include Module`
+  - `module M = N` (alias)
+  - `let open M in ...` (local open)
+  - `M.(expr)` (local open expression)
+  - Qualified access `Module.func`
+- dune file parsing ✅
+  - library/executable/test stanzas
+  - dependencies extraction
+- opam file parsing ✅
+  - name, version, depends
+  - dev/build dependency separation
+  - version constraints
+- OPAM package ecosystem ✅
+  - 80+ package→module mappings
+  - Standard library detection (60+ modules)
+  - Module→package reverse mapping
+
+## Batch 30: Incremental Analysis Cache ⬜ TODO
+- Cache AST parsing results
+- Only re-parse changed files
+- Significant speedup for watch mode
+
 ---
 
 ## Progress Log
 
 ### 2026-02-04
+- 14:55 Batch 29 OCaml言語サポート完了 - 50 new tests, 738 total
+  - src/languages/ocaml/parser.ts: open/include/alias/qualified parsers
+  - src/languages/ocaml/index.ts: OCamlLanguageAdapter
+  - dune/opam file parsing
+  - 80+ OPAM package→module mappings
+  - Standard library detection
+  - Unqualified function call tracking from opened modules
 - 13:48 Batch 26 Watch Mode完了 - 9 new tests, 688 total
   - src/watch/index.ts: Watcher class with chokidar
   - CLI: `reachvet watch` command with debounce, quiet mode, ignore patterns

@@ -19,6 +19,7 @@ import { dartAdapter } from './dart/index.js';
 import { perlAdapter } from './perl/index.js';
 import { haskellAdapter } from './haskell/index.js';
 import { clojureAdapter } from './clojure/index.js';
+import { ocamlAdapter } from './ocaml/index.js';
 
 // Create adapter instances
 const goAdapter = createGoAdapter();
@@ -44,6 +45,7 @@ const adapters = new Map<SupportedLanguage, LanguageAdapter>([
   ['perl', perlAdapter as LanguageAdapter],
   ['haskell', haskellAdapter as LanguageAdapter],
   ['clojure', clojureAdapter as LanguageAdapter],
+  ['ocaml', ocamlAdapter as LanguageAdapter],
 ]);
 
 /**
@@ -120,3 +122,5 @@ export { perlAdapter } from './perl/index.js';
 export { haskellAdapter, HaskellLanguageAdapter, createHaskellAdapter, parseCabalFileFromPath, parseStackYamlFromPath } from './haskell/index.js';
 export { clojureAdapter, ClojureAdapter } from './clojure/index.js';
 export { parseSource as parseClojureSource, parseDepsEdn, parseProjectClj, parseDepsEdnContent, parseProjectCljContent, getNamespacesForPackage, isStandardNamespace } from './clojure/parser.js';
+export { ocamlAdapter, OCamlLanguageAdapter, createOCamlAdapter, parseOpamFileFromPath, parseDuneFileFromPath } from './ocaml/index.js';
+export { parseOCamlSource, parseDuneFile, parseOpamFile, moduleToPackages as ocamlModuleToPackages, isStdlibModule as isOCamlStdlibModule } from './ocaml/parser.js';
