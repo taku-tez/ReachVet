@@ -7,6 +7,7 @@ import { watch as chokidarWatch, type FSWatcher } from 'chokidar';
 import chalk from 'chalk';
 import { Analyzer, type EnrichedAnalyzeOptions } from '../core/analyzer.js';
 import type { Component, AnalysisOutput, SupportedLanguage } from '../types.js';
+import { AnalysisCache, type CacheOptions } from '../cache/index.js';
 
 export interface WatchOptions {
   /** Source directory to watch */
@@ -27,6 +28,10 @@ export interface WatchOptions {
   ignored?: string[];
   /** Callback when analysis completes */
   onAnalysis?: (output: AnalysisOutput) => void;
+  /** Enable incremental analysis cache */
+  cache?: boolean;
+  /** Cache options */
+  cacheOptions?: CacheOptions;
 }
 
 interface WatchStats {
@@ -34,6 +39,8 @@ interface WatchStats {
   lastAnalysis: Date | null;
   lastChangeFile: string | null;
   errors: number;
+  cacheHits: number;
+  cacheMisses: number;
 }
 
 export class Watcher {
@@ -46,15 +53,19 @@ export class Watcher {
     lastAnalysis: null,
     lastChangeFile: null,
     errors: 0,
+    cacheHits: 0,
+    cacheMisses: 0,
   };
   private debounceTimer: NodeJS.Timeout | null = null;
   private pendingChanges: Set<string> = new Set();
   private isAnalyzing = false;
+  private cache: AnalysisCache | null = null;
 
   constructor(options: WatchOptions) {
     this.options = {
       debounceMs: 500,
       ignored: ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/build/**'],
+      cache: true, // Enable cache by default for watch mode
       ...options,
     };
     this.components = options.components;
@@ -64,6 +75,16 @@ export class Watcher {
       osvLookup: options.osvLookup,
       osvOptions: options.osvOptions,
     });
+
+    // Initialize cache if enabled
+    if (this.options.cache) {
+      this.cache = new AnalysisCache({
+        ttlMs: 60 * 60 * 1000, // 1 hour default
+        maxEntries: 10000,
+        parserVersion: '1.0.0',
+        ...this.options.cacheOptions,
+      });
+    }
   }
 
   /**
@@ -107,13 +128,26 @@ export class Watcher {
       await this.watcher.close();
       this.watcher = null;
     }
+
+    // Save cache to disk if persistence is enabled
+    if (this.cache && this.options.cacheOptions?.persistToDisk) {
+      this.cache.saveToDisk();
+    }
+
     console.log(chalk.gray('\n👋 Watch mode stopped'));
+  }
+
+  /**
+   * Get the analysis cache (for testing/inspection)
+   */
+  getCache(): AnalysisCache | null {
+    return this.cache;
   }
 
   /**
    * Handle file change event
    */
-  private handleChange(path: string, _event: string): void {
+  private handleChange(path: string, event: string): void {
     // Filter by file extension
     const ext = path.split('.').pop()?.toLowerCase() ?? '';
     const relevantExtensions = [
@@ -149,12 +183,19 @@ export class Watcher {
       'hs', 'lhs',
       // Clojure
       'clj', 'cljs', 'cljc', 'edn',
+      // OCaml
+      'ml', 'mli',
       // Config files
       'json', 'toml', 'yaml', 'yml', 'xml', 'gradle', 'gemfile', 'csproj',
     ];
 
     if (!relevantExtensions.includes(ext) && !path.endsWith('lock')) {
       return;
+    }
+
+    // Invalidate cache for changed file
+    if (this.cache && (event === 'change' || event === 'unlink')) {
+      this.cache.invalidate(path);
     }
 
     this.pendingChanges.add(path);
@@ -206,6 +247,13 @@ export class Watcher {
       const startTime = Date.now();
       const output = await this.analyzer.analyze(this.components);
       const duration = Date.now() - startTime;
+
+      // Update cache stats
+      if (this.cache) {
+        const cacheStats = this.cache.getStats();
+        this.stats.cacheHits = cacheStats.hits;
+        this.stats.cacheMisses = cacheStats.misses;
+      }
 
       this.printResults(output, duration, trigger);
 
@@ -303,6 +351,16 @@ export class Watcher {
     if (output.summary.warningsCount && output.summary.warningsCount > 0) {
       console.log();
       console.log(chalk.yellow(`  ⚠️  ${output.summary.warningsCount} analysis warning(s)`));
+    }
+
+    // Show cache stats if enabled and not initial run
+    if (this.cache && trigger === 'change') {
+      const cacheStats = this.cache.getStats();
+      const hitRate = cacheStats.hitRate * 100;
+      if (hitRate > 0) {
+        console.log();
+        console.log(chalk.gray(`  📦 Cache: ${cacheStats.entries} entries, ${hitRate.toFixed(0)}% hit rate`));
+      }
     }
   }
 

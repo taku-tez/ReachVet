@@ -54,3 +54,19 @@ export type {
   LanguageAdapter,
   ReachVetInput
 } from './types.js';
+
+// Watch mode
+export {
+  Watcher,
+  startWatch,
+  type WatchOptions
+} from './watch/index.js';
+
+// Incremental cache
+export {
+  AnalysisCache,
+  getGlobalCache,
+  resetGlobalCache,
+  type CachedParseResult,
+  type CacheOptions
+} from './cache/index.js';

@@ -281,6 +281,8 @@ describe('Watcher', () => {
         lastAnalysis: null,
         lastChangeFile: null,
         errors: 0,
+        cacheHits: 0,
+        cacheMisses: 0,
       });
     });
   });

@@ -379,16 +379,30 @@ Status: ✅ Completed (2026-02-04 13:48)
   - Standard library detection (60+ modules)
   - Module→package reverse mapping
 
-## Batch 30: Incremental Analysis Cache ⬜ TODO
-- Cache AST parsing results
-- Only re-parse changed files
-- Significant speedup for watch mode
+## Batch 30: Incremental Analysis Cache ✅ DONE (2026-02-04 15:59)
+- src/cache/index.ts: AnalysisCache class ✅
+  - In-memory LRU cache with content hashing ✅
+  - TTL-based expiration ✅
+  - Version-based invalidation ✅
+  - Disk persistence (optional) ✅
+  - Global singleton support ✅
+- Watch mode integration ✅
+  - File change invalidates cache ✅
+  - Cache stats displayed in UI ✅
+  - Automatic cache on by default ✅
+- Export from main package ✅
+- 25 new tests (cache.test.ts) ✅
 
 ---
 
 ## Progress Log
 
 ### 2026-02-04
+- 15:59 Batch 30 Incremental Analysis Cache完了 - 25 new tests, 787 total
+  - src/cache/index.ts: LRU cache with content hashing, TTL, disk persistence
+  - Watch mode integration: auto cache invalidation on file change
+  - Cache stats displayed in watch mode UI
+  - Export AnalysisCache, getGlobalCache, resetGlobalCache from main package
 - 14:55 Batch 29 OCaml言語サポート完了 - 50 new tests, 738 total
   - src/languages/ocaml/parser.ts: open/include/alias/qualified parsers
   - src/languages/ocaml/index.ts: OCamlLanguageAdapter
