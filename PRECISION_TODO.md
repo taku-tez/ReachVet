@@ -417,11 +417,43 @@ Status: ✅ Completed (2026-02-04 13:48)
 - 27 new tests (precommit.test.ts) ✅
 - Total: 814 tests passing ✅
 
+## Batch 32: Configuration File Support ✅ DONE (2026-02-04 18:12)
+- src/config/index.ts: Configuration module ✅
+  - Multiple config file formats (.reachvetrc, .reachvetrc.json, .reachvetrc.js, reachvet.config.js) ✅
+  - package.json "reachvet" field support ✅
+  - Config file auto-detection with priority ✅
+  - Config validation with detailed error messages ✅
+  - Config merging (file + CLI options) ✅
+  - Sample config generation (JSON / JS) ✅
+- CLI commands ✅
+  - `reachvet init` - Create configuration file ✅
+  - `reachvet config` - Show current configuration ✅
+  - `--format json|js` - Config format selection ✅
+  - `--force` - Overwrite existing config ✅
+  - `--validate` - Validate configuration ✅
+- Config options ✅
+  - language, sbom, ignorePaths, ignorePackages, ignoreVulnerabilities
+  - output, sarif, html, markdown, graph, dot, dark
+  - osv, osvCache, cache (enabled, ttl, maxSize, persist)
+  - watch (debounce, ignore, quiet)
+  - precommit (blockOnReachable, skipNoStaged, verbose)
+  - ci (failOn, annotations)
+- Exported from main package (ReachVetConfig type) ✅
+- 37 new tests (config.test.ts) ✅
+- Total: 851 tests passing ✅
+
 ---
 
 ## Progress Log
 
 ### 2026-02-04
+- 18:12 Batch 32 Configuration File Support完了 - 37 new tests, 851 total
+  - src/config/index.ts: Multi-format config file loader
+  - CLI: `reachvet init` and `reachvet config` commands
+  - package.json "reachvet" field support
+  - Config validation with detailed errors
+  - Config merging (file + CLI with deep merge for nested)
+  - Exported ReachVetConfig type from main package
 - 17:07 Batch 31 Pre-commit Hook Support完了 - 27 new tests, 814 total
   - src/precommit/index.ts: Git staged file detection, language auto-detect
   - CLI: `reachvet pre-commit` and `reachvet pre-commit-config` commands

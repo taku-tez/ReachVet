@@ -70,3 +70,15 @@ export {
   type CachedParseResult,
   type CacheOptions
 } from './cache/index.js';
+
+// Configuration
+export {
+  loadConfig,
+  loadConfigFromFile,
+  loadConfigFromPackageJson,
+  mergeConfig,
+  validateConfig,
+  generateSampleConfig,
+  findConfigPath,
+  type ReachVetConfig
+} from './config/index.js';

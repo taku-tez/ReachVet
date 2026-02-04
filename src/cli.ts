@@ -721,5 +721,88 @@ function printComponentResult(result: ComponentResult, color: 'red' | 'yellow' |
   }
 }
 
+// === init command ===
+program
+  .command('init')
+  .description('Create a configuration file in the current directory')
+  .option('-f, --format <format>', 'Config format: json, js', 'json')
+  .option('--force', 'Overwrite existing config file')
+  .action(async (options) => {
+    const { generateSampleConfig, findConfigPath } = await import('./config/index.js');
+    
+    // Check for existing config
+    const existing = findConfigPath(process.cwd());
+    if (existing && !options.force) {
+      console.error(chalk.yellow(`Config file already exists: ${existing}`));
+      console.error(chalk.gray('Use --force to overwrite'));
+      process.exit(1);
+    }
+    
+    // Generate config content
+    const content = generateSampleConfig(options.format as 'json' | 'js');
+    
+    // Determine filename
+    let filename: string;
+    if (options.format === 'js') {
+      filename = 'reachvet.config.cjs';
+    } else {
+      filename = '.reachvetrc.json';
+    }
+    
+    // Write file
+    await writeFile(filename, content);
+    console.log(chalk.green(`✓ Created ${filename}`));
+    console.log();
+    console.log('Edit the config file to customize ReachVet behavior.');
+    console.log('Documentation: https://github.com/taku-tez/ReachVet#configuration');
+  });
+
+// === config command ===
+program
+  .command('config')
+  .description('Show current configuration')
+  .option('-c, --config <file>', 'Path to config file')
+  .option('--validate', 'Validate the configuration')
+  .action(async (options) => {
+    const { loadConfig, validateConfig, findConfigPath } = await import('./config/index.js');
+    
+    const config = loadConfig(process.cwd(), options.config);
+    
+    if (!config) {
+      const configPath = findConfigPath(process.cwd());
+      if (configPath) {
+        console.error(chalk.red(`Failed to load config from: ${configPath}`));
+      } else {
+        console.error(chalk.yellow('No configuration file found.'));
+        console.error(chalk.gray('Run `reachvet init` to create one.'));
+      }
+      process.exit(1);
+    }
+    
+    // Display config location
+    const configPath = options.config || findConfigPath(process.cwd());
+    console.log(chalk.cyan(`Config loaded from: ${configPath}`));
+    console.log();
+    
+    // Validate if requested
+    if (options.validate) {
+      const validation = validateConfig(config);
+      if (validation.valid) {
+        console.log(chalk.green('✓ Configuration is valid'));
+      } else {
+        console.log(chalk.red('✗ Configuration has errors:'));
+        for (const error of validation.errors) {
+          console.log(chalk.red(`  - ${error}`));
+        }
+        process.exit(1);
+      }
+      console.log();
+    }
+    
+    // Display configuration
+    console.log(chalk.gray('Current configuration:'));
+    console.log(JSON.stringify(config, null, 2));
+  });
+
 // Run CLI
 program.parse();
