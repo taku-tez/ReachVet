@@ -393,11 +393,41 @@ Status: ✅ Completed (2026-02-04 13:48)
 - Export from main package ✅
 - 25 new tests (cache.test.ts) ✅
 
+## Batch 31: Pre-commit Hook Support ✅ DONE (2026-02-04 17:07)
+- src/precommit/index.ts: Pre-commit module ✅
+  - Git repository detection ✅
+  - Staged files parsing (git diff --cached) ✅
+  - File extension to language mapping (18 languages) ✅
+  - Auto language detection from staged files ✅
+  - Staged content retrieval ✅
+  - Relevant file filtering (source + package manager files) ✅
+  - Formatted output for pre-commit context ✅
+- CLI commands ✅
+  - `reachvet pre-commit` - Run as pre-commit hook ✅
+  - `reachvet pre-commit-config` - Generate .pre-commit-hooks.yaml ✅
+  - `--osv` - Enable OSV vulnerability lookup ✅
+  - `--block-on-reachable` - Strict mode ✅
+  - `--skip-no-staged` - Skip if no relevant files ✅
+  - `--verbose` - Detailed output ✅
+  - `--no-color` - Disable colors ✅
+- .pre-commit-hooks.yaml ✅
+  - `reachvet` - Basic pre-commit hook ✅
+  - `reachvet-osv` - With OSV lookup ✅
+  - `reachvet-strict` - Block on any reachable dependency ✅
+- 27 new tests (precommit.test.ts) ✅
+- Total: 814 tests passing ✅
+
 ---
 
 ## Progress Log
 
 ### 2026-02-04
+- 17:07 Batch 31 Pre-commit Hook Support完了 - 27 new tests, 814 total
+  - src/precommit/index.ts: Git staged file detection, language auto-detect
+  - CLI: `reachvet pre-commit` and `reachvet pre-commit-config` commands
+  - .pre-commit-hooks.yaml: Ready-to-use pre-commit framework integration
+  - Options: --osv, --block-on-reachable, --skip-no-staged, --verbose
+  - 18 language extensions mapped to supported languages
 - 15:59 Batch 30 Incremental Analysis Cache完了 - 25 new tests, 787 total
   - src/cache/index.ts: LRU cache with content hashing, TTL, disk persistence
   - Watch mode integration: auto cache invalidation on file change

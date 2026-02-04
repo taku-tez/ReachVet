@@ -12,6 +12,15 @@ import { parseSimpleJson, parseFromStdin, parseSBOM } from './input/index.js';
 import { listSupportedLanguages, detectLanguage } from './languages/index.js';
 import { toSarif, generateGraph, printAnnotations } from './output/index.js';
 import { startWatch, Watcher } from './watch/index.js';
+import {
+  isGitRepository,
+  getStagedFiles,
+  filterByLanguage,
+  detectLanguageFromStaged,
+  hasRelevantStagedFiles,
+  formatPreCommitOutput,
+  generatePreCommitConfig,
+} from './precommit/index.js';
 import type { Component, ComponentResult, AnalysisOutput, SupportedLanguage } from './types.js';
 import { writeFile } from 'node:fs/promises';
 import { VERSION } from './version.js';
@@ -440,6 +449,167 @@ program
     } catch (error) {
       console.error(chalk.red(`Error: ${(error as Error).message}`));
       process.exit(1);
+    }
+  });
+
+// === pre-commit command ===
+program
+  .command('pre-commit')
+  .description('Run reachability check as a pre-commit hook (analyzes staged files)')
+  .option('-c, --components <file>', 'JSON file with component list')
+  .option('--sbom <file>', 'SBOM file (CycloneDX or SPDX)')
+  .option('-l, --language <lang>', 'Language (auto-detect if not specified)')
+  .option('--osv', 'Fetch vulnerability data from OSV.dev')
+  .option('--osv-cache <dir>', 'OSV cache directory')
+  .option('--osv-ttl <seconds>', 'OSV cache TTL in seconds', parseInt)
+  .option('--verbose', 'Show detailed output')
+  .option('--no-color', 'Disable colored output')
+  .option('--block-on-reachable', 'Exit non-zero if any dependency is reachable (not just vulnerable)')
+  .option('--skip-no-staged', 'Skip check if no relevant files are staged (exit 0)')
+  .action(async (options) => {
+    try {
+      // Check if we're in a git repo
+      if (!isGitRepository()) {
+        console.error(chalk.red('Error: Not a git repository'));
+        process.exit(1);
+      }
+
+      // Check for relevant staged files
+      if (!hasRelevantStagedFiles()) {
+        if (options.skipNoStaged) {
+          if (!options.noColor) {
+            console.log(chalk.gray('No relevant files staged, skipping check.'));
+          }
+          process.exit(0);
+        }
+        console.error(chalk.yellow('No relevant source files staged'));
+        process.exit(0);
+      }
+
+      // Load components
+      let components: Component[] | undefined;
+
+      if (options.sbom) {
+        components = await parseSBOM(options.sbom);
+      } else if (options.components) {
+        components = await parseSimpleJson(options.components);
+      } else {
+        // Try to auto-detect SBOM or package files
+        const sbomCandidates = [
+          'sbom.json', 'bom.json', 'cyclonedx.json', 'spdx.json',
+          '.sbom.json', 'sbom/bom.json',
+        ];
+        const { existsSync } = await import('node:fs');
+        for (const candidate of sbomCandidates) {
+          try {
+            if (existsSync(candidate)) {
+              components = await parseSBOM(candidate);
+              if (options.verbose) {
+                console.log(chalk.gray(`Using SBOM: ${candidate}`));
+              }
+              break;
+            }
+          } catch {
+            continue;
+          }
+        }
+        if (!components) {
+          console.error(chalk.red('Error: No SBOM or components file found.'));
+          console.error(chalk.gray('  Provide --sbom or --components, or create sbom.json'));
+          process.exit(1);
+        }
+      }
+
+      if (components.length === 0) {
+        console.error(chalk.yellow('No components to check'));
+        process.exit(0);
+      }
+
+      // Get staged files
+      const stagedFiles = getStagedFiles();
+      
+      // Detect or use specified language
+      let language: SupportedLanguage | undefined = options.language;
+      if (!language) {
+        const detected = detectLanguageFromStaged(stagedFiles);
+        if (detected) {
+          language = detected;
+        }
+      }
+
+      if (!language) {
+        console.error(chalk.red('Error: Could not detect language from staged files'));
+        console.error(chalk.gray('  Specify language with --language'));
+        process.exit(1);
+      }
+
+      // Filter to relevant staged files
+      const relevantFiles = filterByLanguage(stagedFiles, language);
+      
+      if (relevantFiles.length === 0) {
+        if (options.skipNoStaged) {
+          if (!options.noColor) {
+            console.log(chalk.gray(`No ${language} files staged, skipping check.`));
+          }
+          process.exit(0);
+        }
+      }
+
+      if (options.verbose) {
+        console.log(chalk.gray(`Checking ${relevantFiles.length} staged ${language} files...`));
+      }
+
+      // Run analysis on current source (staged content would require temp files)
+      const analyzer = new Analyzer({
+        sourceDir: '.',
+        language,
+        verbose: false,
+        osvLookup: options.osv,
+        osvOptions: options.osv ? {
+          cache: {
+            enabled: true,
+            directory: options.osvCache,
+            ttlSeconds: options.osvTtl ?? 3600,
+          },
+        } : undefined,
+      });
+
+      const output = await analyzer.analyze(components);
+
+      // Format and print output
+      const formatted = formatPreCommitOutput(output, {
+        color: options.color !== false,
+        verbose: options.verbose,
+      });
+      console.log(formatted);
+
+      // Exit codes
+      if (output.summary.vulnerableReachable > 0) {
+        process.exit(1);
+      } else if (options.blockOnReachable && output.summary.reachable > 0) {
+        process.exit(1);
+      }
+      process.exit(0);
+
+    } catch (error) {
+      console.error(chalk.red(`Error: ${(error as Error).message}`));
+      process.exit(1);
+    }
+  });
+
+// === pre-commit-config command ===
+program
+  .command('pre-commit-config')
+  .description('Generate .pre-commit-hooks.yaml configuration')
+  .option('-o, --output <file>', 'Output file (default: stdout)')
+  .action(async (options) => {
+    const config = generatePreCommitConfig();
+    
+    if (options.output) {
+      await writeFile(options.output, config, 'utf-8');
+      console.log(chalk.green(`Written to ${options.output}`));
+    } else {
+      console.log(config);
     }
   });
 

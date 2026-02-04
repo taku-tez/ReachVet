@@ -82,6 +82,54 @@ Watch mode features:
 
 Press `Ctrl+C` to stop watching.
 
+### Pre-commit Hook
+
+Integrate ReachVet into your Git workflow to catch vulnerable dependencies before commit:
+
+```bash
+# Run manually as a pre-commit check
+reachvet pre-commit --sbom bom.json
+
+# With OSV vulnerability lookup (slower but more comprehensive)
+reachvet pre-commit --sbom bom.json --osv
+
+# Strict mode: block if ANY dependency is reachable (not just vulnerable)
+reachvet pre-commit --sbom bom.json --block-on-reachable
+
+# Skip if no relevant source files are staged
+reachvet pre-commit --sbom bom.json --skip-no-staged
+```
+
+**Integration with [pre-commit](https://pre-commit.com/) framework:**
+
+Add to your `.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: https://github.com/taku-tez/reachvet
+    rev: v0.5.0  # Use latest version
+    hooks:
+      - id: reachvet
+        args: ['--sbom', 'sbom.json']
+```
+
+Or generate the hook configuration:
+
+```bash
+# Print pre-commit hooks YAML
+reachvet pre-commit-config
+
+# Save to file
+reachvet pre-commit-config -o .pre-commit-hooks.yaml
+```
+
+Pre-commit features:
+- 🔍 Auto-detects staged files and language
+- 🚫 Blocks commits with vulnerable & reachable dependencies
+- ⚡ Only analyzes what's being committed
+- 🎨 Colored output for terminal visibility
+- 📦 Auto-detects SBOM (sbom.json, bom.json, cyclonedx.json, spdx.json)
+
 ### Input Formats
 
 **Simple JSON:**

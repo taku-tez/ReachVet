@@ -1,0 +1,38 @@
+# ReachVet pre-commit hooks
+# See https://github.com/taku-tez/reachvet for documentation
+#
+# Add to your .pre-commit-config.yaml:
+#
+# repos:
+#   - repo: https://github.com/taku-tez/reachvet
+#     rev: v0.x.x  # Use latest version
+#     hooks:
+#       - id: reachvet
+#         args: ['--sbom', 'sbom.json']
+
+- id: reachvet
+  name: ReachVet - Supply Chain Reachability
+  description: Check if staged files use vulnerable dependencies
+  entry: npx reachvet pre-commit
+  language: system
+  types: [file]
+  pass_filenames: false
+  stages: [pre-commit]
+
+- id: reachvet-osv
+  name: ReachVet with OSV (slower)
+  description: Check reachability with live OSV.dev vulnerability data
+  entry: npx reachvet pre-commit --osv
+  language: system
+  types: [file]
+  pass_filenames: false
+  stages: [pre-commit]
+
+- id: reachvet-strict
+  name: ReachVet Strict Mode
+  description: Block commit if any dependency is reachable (not just vulnerable)
+  entry: npx reachvet pre-commit --block-on-reachable
+  language: system
+  types: [file]
+  pass_filenames: false
+  stages: [pre-commit]

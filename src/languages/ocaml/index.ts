@@ -228,7 +228,7 @@ export class OCamlLanguageAdapter extends BaseLanguageAdapter {
 
           // Find usages
           const usages = findUsages(content, filePath, [open]);
-          for (const [key, usage] of usages.entries()) {
+          for (const [_key, usage] of usages.entries()) {
             const funcName = usage.function;
             if (!usedFunctions.includes(funcName)) {
               usedFunctions.push(funcName);

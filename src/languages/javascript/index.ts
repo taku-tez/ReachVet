@@ -11,7 +11,7 @@ import { parseSource, findNamespaceUsages, checkImportUsage, type ImportInfo } f
 import { analyzeCallGraph, checkImportedMembersCalled } from './callgraph.js';
 import { matchesComponent, extractUsedMembers, getPrimaryImportStyle } from './detector.js';
 import { resolveReexportChains, type ReexportChain } from './reexport.js';
-import { detectWorkspace, isInternalPackage, type WorkspaceInfo } from './workspace.js';
+import { detectWorkspace, isInternalPackage } from './workspace.js';
 import type { Component, ComponentResult, SupportedLanguage, UsageInfo, CodeLocation, AnalysisWarning } from '../../types.js';
 
 export class JavaScriptAdapter extends BaseLanguageAdapter {

@@ -91,7 +91,10 @@ export interface AnalysisWarning {
     | 'type_only_import'    // TypeScript type-only imports (no runtime dependency)
     | 'side_effect_import'  // Side-effect only imports (import 'polyfill')
     | 'unused_import'       // Imported but never used in code
-    | 'refer_all_import';   // Clojure :refer :all or use (imports all symbols)
+    | 'refer_all_import'    // Clojure :refer :all or use (imports all symbols)
+    | 'reflection'          // Java reflection usage (Class.forName, etc.)
+    | 'dynamic_code'        // JavaScript dynamic code (eval, Function, setTimeout string)
+    | 'unsafe_code';        // Rust unsafe blocks/functions
   message: string;
   location?: CodeLocation;
   severity: 'info' | 'warning';
