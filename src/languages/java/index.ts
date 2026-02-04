@@ -24,6 +24,7 @@ import {
   findClassUsages,
   extractArtifactFromPackage,
   isJavaStandardLibrary,
+  detectReflection,
   type JavaImportInfo,
   type PomInfo,
   type GradleInfo
@@ -200,6 +201,26 @@ export class JavaLanguageAdapter extends BaseLanguageAdapter {
             }
           }
         }
+      }
+    }
+
+    // Detect reflection usage
+    for (const [file, parsed] of this.parsedFiles) {
+      const reflectionWarnings = detectReflection(parsed.source, file);
+      for (const rw of reflectionWarnings) {
+        const typeMessages: Record<string, string> = {
+          'Class.forName': `Class.forName() detected${rw.className ? `: ${rw.className}` : ''} - dynamic class loading`,
+          'loadClass': `ClassLoader.loadClass() detected${rw.className ? `: ${rw.className}` : ''} - dynamic class loading`,
+          'newInstance': 'newInstance() detected - reflection-based instantiation',
+          'getMethod': 'getMethod() detected - reflection method access',
+          'invoke': 'Method.invoke() detected - reflection method call'
+        };
+        warnings.push({
+          code: 'reflection',
+          message: typeMessages[rw.type] || `Reflection: ${rw.type}`,
+          location: rw.location,
+          severity: 'warning'
+        });
       }
     }
 

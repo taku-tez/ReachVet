@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { BaseLanguageAdapter } from '../base.js';
-import { parsePythonSource, findModuleUsages, type PythonImportInfo } from './parser.js';
+import { parsePythonSource, findModuleUsages, detectDynamicImports, type PythonImportInfo } from './parser.js';
 import { matchesComponent, extractUsedMembers, getPrimaryImportStyle, detectDangerousPatterns } from './detector.js';
 import type { Component, ComponentResult, SupportedLanguage, UsageInfo, CodeLocation, AnalysisWarning } from '../../types.js';
 
@@ -163,6 +163,24 @@ export class PythonAdapter extends BaseLanguageAdapter {
         message: pattern,
         severity: 'warning'
       });
+    }
+
+    // Add dynamic import warnings
+    for (const { source, file } of matchingImports) {
+      const dynamicWarnings = detectDynamicImports(source, file);
+      for (const dw of dynamicWarnings) {
+        const typeMessages: Record<string, string> = {
+          '__import__': `__import__() detected${dw.module ? ` for module: ${dw.module}` : ''} - dynamic import`,
+          'importlib': `importlib.import_module() detected${dw.module ? ` for module: ${dw.module}` : ''} - dynamic import`,
+          'exec': 'exec() with import detected - dynamic code execution'
+        };
+        warnings.push({
+          code: 'dynamic_import',
+          message: typeMessages[dw.type] || `Dynamic import: ${dw.type}`,
+          location: dw.location,
+          severity: 'warning'
+        });
+      }
     }
 
     // Check if specific vulnerable functions are used
