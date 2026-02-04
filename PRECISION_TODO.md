@@ -577,6 +577,36 @@ Status: ✅ Completed (2026-02-04 13:48)
 - 36 new tests (freshness.test.ts) ✅
 - Total: 1112 tests passing (v0.5.9) ✅
 
+## Batch 44: EPSS Integration ✅ DONE (2026-02-05 03:10)
+- src/epss/index.ts: EPSS (Exploit Prediction Scoring System) module ✅
+  - EPSSClient: Query FIRST.org EPSS API with retries ✅
+  - EPSSCache: Local caching with 24h TTL and disk persistence ✅
+  - EPSSScore type: cve, epss, percentile, date ✅
+  - Batch query support (up to 100 CVEs per request) ✅
+- Priority Calculator ✅
+  - calculatePriority(): EPSS + CVSS + reachability weighted scoring ✅
+  - Weights: EPSS 40%, CVSS 35%, Reachability 25% ✅
+  - Priority levels: critical (>=70), high (>=50), medium (>=30), low (>=15), info ✅
+  - Actionable recommendations for each priority level ✅
+  - priorityFromEPSS(): EPSS-only priority determination ✅
+- Report Generation ✅
+  - formatEPSSReport(): Text table with CVEs, priorities, scores ✅
+  - toEPSSJson(): JSON output for programmatic use ✅
+  - createEPSSReport(): Full report from vulnerability data ✅
+- CLI integration ✅
+  - `reachvet epss` command ✅
+  - --cve: Query specific CVE IDs directly ✅
+  - --components, --sbom, --stdin: Input from files ✅
+  - --json: JSON output ✅
+  - --cache-dir, --no-cache: Cache control ✅
+- Exported from main package ✅
+  - EPSSClient, EPSSCache, calculatePriority, priorityFromEPSS ✅
+  - extractCVEs, createEPSSReport, formatEPSSReport, toEPSSJson ✅
+  - queryEPSSWithCache, getEPSSClient, getEPSSCache ✅
+  - Types: EPSSScore, EPSSBatchResult, PriorityScore, EPSSReport ✅
+- 37 new tests (epss.test.ts) ✅
+- Total: 1149 tests passing (v0.5.10) ✅
+
 ## Batch 42: JSON Schema for Configuration ✅ DONE (2026-02-05 00:58)
 - src/config/schema.ts: JSON Schema generator ✅
   - Draft-07 schema with full type definitions ✅
@@ -626,6 +656,14 @@ Status: ✅ Completed (2026-02-04 13:48)
 ## Progress Log
 
 ### 2026-02-05
+- 03:10 Batch 44 EPSS Integration完了 - 37 new tests, 1149 total
+  - src/epss/index.ts: EPSS (Exploit Prediction Scoring System) module
+  - EPSSClient: Query FIRST.org EPSS API with retries
+  - EPSSCache: Local caching with 24h TTL and disk persistence
+  - Priority calculator: EPSS + CVSS + reachability weighted scoring
+  - CLI: `reachvet epss` command with --cve, --json, --cache-dir options
+  - Exported from main package: EPSSClient, EPSSCache, calculatePriority, etc.
+  - Predicts CVE exploitation probability within 30 days
 - 01:57 Batch 43 Dependency Freshness Check完了 - 36 new tests, 1112 total
   - src/freshness/index.ts: Multi-ecosystem freshness checker
   - 9 registry integrations (npm, PyPI, Cargo, Go, RubyGems, Packagist, NuGet, Hex, Pub)
