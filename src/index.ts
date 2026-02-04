@@ -189,3 +189,24 @@ export {
   type FreshnessReport,
   type FreshnessOptions
 } from './freshness/index.js';
+
+// EPSS (Exploit Prediction Scoring System) integration
+export {
+  EPSSClient,
+  EPSSCache,
+  calculatePriority,
+  priorityFromEPSS,
+  extractCVEs,
+  createEPSSReport,
+  formatEPSSReport,
+  toEPSSJson,
+  queryEPSSWithCache,
+  getEPSSClient,
+  getEPSSCache,
+  type EPSSScore,
+  type EPSSBatchResult,
+  type EPSSCacheOptions,
+  type PriorityScore,
+  type EPSSQueryOptions,
+  type EPSSReport
+} from './epss/index.js';

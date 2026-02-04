@@ -1267,5 +1267,149 @@ program
     }
   });
 
+// === epss command ===
+program
+  .command('epss')
+  .description('EPSS (Exploit Prediction Scoring System) priority analysis')
+  .option('-c, --components <file>', 'JSON file with vulnerability list')
+  .option('--sbom <file>', 'SBOM file (CycloneDX or SPDX) with vulnerability annotations')
+  .option('--stdin', 'Read vulnerability list from stdin')
+  .option('--cve <cve...>', 'Query specific CVE IDs directly')
+  .option('--json', 'Output as JSON')
+  .option('--cache-dir <dir>', 'EPSS cache directory', '.reachvet-cache/epss')
+  .option('--no-cache', 'Disable EPSS caching')
+  .option('-v, --verbose', 'Show progress')
+  .action(async (options) => {
+    const {
+      formatEPSSReport,
+      toEPSSJson,
+      extractCVEs,
+      queryEPSSWithCache,
+      calculatePriority,
+    } = await import('./epss/index.js');
+
+    try {
+      let cves: string[] = [];
+      let vulnData: Array<{ id: string; cvss?: number; isReachable?: boolean; aliases?: string[] }> = [];
+
+      // Helper to extract vuln data from component
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const extractVulnData = (c: any) => {
+        return (c.vulnerabilities || []).map((v: any) => ({
+          id: v.id,
+          cvss: v.cvss ?? v.score ?? undefined,
+          isReachable: c.reachable ?? false,
+          aliases: v.aliases ?? [],
+        }));
+      };
+
+      // Get CVE list from various sources
+      if (options.cve && options.cve.length > 0) {
+        // Direct CVE query
+        cves = options.cve;
+        vulnData = cves.map(cve => ({ id: cve }));
+      } else if (options.stdin) {
+        const components = await parseFromStdin();
+        vulnData = components.flatMap(extractVulnData);
+        cves = extractCVEs(vulnData);
+      } else if (options.sbom) {
+        const components = await parseSBOM(options.sbom);
+        vulnData = components.flatMap(extractVulnData);
+        cves = extractCVEs(vulnData);
+      } else if (options.components) {
+        const components = await parseSimpleJson(options.components);
+        vulnData = components.flatMap(extractVulnData);
+        cves = extractCVEs(vulnData);
+      } else {
+        console.error(chalk.red('Error: Provide --cve, --components, --sbom, or --stdin'));
+        process.exit(1);
+      }
+
+      if (cves.length === 0) {
+        console.error(chalk.yellow('No CVEs found to analyze'));
+        process.exit(0);
+      }
+
+      if (options.verbose) {
+        console.error(chalk.cyan(`ReachVet v${VERSION} - EPSS Priority Analysis`));
+        console.error(chalk.gray(`Querying EPSS scores for ${cves.length} CVEs...`));
+      }
+
+      // Query EPSS scores
+      const cacheOptions = options.cache 
+        ? { cacheDir: options.cacheDir }
+        : undefined;
+
+      const epssScores = await queryEPSSWithCache(cves, cacheOptions);
+
+      if (options.verbose) {
+        console.error(chalk.gray(`Retrieved ${epssScores.size} EPSS scores`));
+      }
+
+      // Calculate priorities
+      const priorities = vulnData.map(vuln => {
+        let cveId = vuln.id.startsWith('CVE-') ? vuln.id : null;
+        if (!cveId && vuln.aliases) {
+          cveId = vuln.aliases.find(a => a.startsWith('CVE-')) ?? null;
+        }
+        if (!cveId) return null;
+
+        const epss = epssScores.get(cveId.toUpperCase());
+        const priority = calculatePriority(
+          cveId,
+          epss?.epss ?? null,
+          vuln.cvss ?? null,
+          vuln.isReachable ?? false
+        );
+
+        if (epss) {
+          priority.epss = epss;
+        }
+
+        return priority;
+      }).filter((p): p is NonNullable<typeof p> => p !== null);
+
+      // Build report
+      const summary = {
+        total: priorities.length,
+        withEPSS: priorities.filter(p => p.epss).length,
+        critical: priorities.filter(p => p.priority === 'critical').length,
+        high: priorities.filter(p => p.priority === 'high').length,
+        medium: priorities.filter(p => p.priority === 'medium').length,
+        low: priorities.filter(p => p.priority === 'low').length,
+      };
+
+      // Get model date
+      let modelDate = new Date().toISOString().split('T')[0];
+      const firstEpss = Array.from(epssScores.values())[0];
+      if (firstEpss) {
+        modelDate = firstEpss.date;
+      }
+
+      const report = {
+        scannedAt: new Date().toISOString(),
+        modelDate,
+        summary,
+        priorities,
+      };
+
+      // Output
+      if (options.json) {
+        console.log(toEPSSJson(report));
+      } else {
+        console.log(formatEPSSReport(report));
+      }
+
+      // Exit code: 1 if critical issues found
+      if (summary.critical > 0) {
+        process.exit(1);
+      }
+    } catch (err) {
+      const error = err as Error;
+      console.error(chalk.red(`Error: ${error.message}`));
+      process.exit(1);
+    }
+  });
+
 // Run CLI
 program.parse();

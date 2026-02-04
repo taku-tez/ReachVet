@@ -5,7 +5,14 @@
  * with latest available versions from package registries.
  */
 
-import { Dependency, Ecosystem } from '../types.js';
+// Local type definitions (not in main types.ts as they're freshness-specific)
+export type Ecosystem = 'npm' | 'pypi' | 'cargo' | 'go' | 'rubygems' | 'packagist' | 'nuget' | 'hex' | 'pub' | 'maven' | 'hackage' | 'opam' | 'clojars';
+
+export interface Dependency {
+  name: string;
+  version: string;
+  ecosystem: Ecosystem | string;
+}
 
 export interface VersionInfo {
   latest: string;
@@ -462,7 +469,7 @@ async function fetchVersionInfo(
   const timeout = options.timeout || 10000;
   const registries = { ...DEFAULT_REGISTRIES, ...options.registryUrls };
 
-  const ecosystem = dep.ecosystem;
+  const ecosystem = dep.ecosystem as Ecosystem;
   const registryUrl = registries[ecosystem];
 
   if (!registryUrl) return null;
@@ -609,7 +616,7 @@ export async function checkFreshness(
  * Format freshness result for CLI output
  */
 export function formatFreshnessResult(result: FreshnessResult): string {
-  const { dependency, currentVersion, latestVersion, isOutdated, isDeprecated, severity } = result;
+  const { dependency, currentVersion, latestVersion, isDeprecated, severity } = result;
 
   const icons: Record<string, string> = {
     current: '✅',
