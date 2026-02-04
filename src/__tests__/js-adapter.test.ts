@@ -255,3 +255,57 @@ describe('complex import patterns', () => {
     expect(lodashResult?.usage?.usedMembers).toContain('template');
   });
 });
+
+describe('workspace integration', () => {
+  it('should skip internal workspace packages', async () => {
+    const tmpDir = await mkdtemp(join(tmpdir(), 'reachvet-ws-'));
+    
+    // Create monorepo structure
+    await writeFile(join(tmpDir, 'package.json'), JSON.stringify({
+      name: 'monorepo',
+      workspaces: ['packages/*']
+    }));
+    
+    await mkdir(join(tmpDir, 'packages', 'core'), { recursive: true });
+    await writeFile(join(tmpDir, 'packages', 'core', 'package.json'), JSON.stringify({
+      name: '@monorepo/core',
+      version: '1.0.0'
+    }));
+    await writeFile(join(tmpDir, 'packages', 'core', 'index.js'), `
+      export const utils = { foo: () => 42 };
+    `);
+    
+    await mkdir(join(tmpDir, 'packages', 'app'), { recursive: true });
+    await writeFile(join(tmpDir, 'packages', 'app', 'package.json'), JSON.stringify({
+      name: '@monorepo/app',
+      version: '1.0.0'
+    }));
+    await writeFile(join(tmpDir, 'packages', 'app', 'index.js'), `
+      import { utils } from '@monorepo/core';
+      import lodash from 'lodash';
+      
+      lodash.merge({}, utils);
+    `);
+    
+    const adapter = new JavaScriptAdapter();
+    const result = await adapter.analyze(tmpDir, [
+      { name: '@monorepo/core', version: '1.0.0', type: 'npm' },
+      { name: 'lodash', version: '4.17.21', type: 'npm' }
+    ]);
+    
+    await rm(tmpDir, { recursive: true });
+    
+    const coreResult = result.find(r => r.component.name === '@monorepo/core');
+    const lodashResult = result.find(r => r.component.name === 'lodash');
+    
+    // Internal package should be skipped
+    expect(coreResult?.status).toBe('not_reachable');
+    // Details might have internal workspace message
+    if (coreResult?.details) {
+      expect(coreResult.details.some(d => d.includes('Internal'))).toBe(true);
+    }
+    
+    // External package should be analyzed normally
+    expect(lodashResult?.status).not.toBe('not_reachable');
+  });
+});

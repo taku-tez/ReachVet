@@ -11,6 +11,7 @@ import { parseSource, findNamespaceUsages, checkImportUsage, type ImportInfo } f
 import { analyzeCallGraph, checkImportedMembersCalled } from './callgraph.js';
 import { matchesComponent, extractUsedMembers, getPrimaryImportStyle } from './detector.js';
 import { resolveReexportChains, type ReexportChain } from './reexport.js';
+import { detectWorkspace, isInternalPackage, type WorkspaceInfo } from './workspace.js';
 import type { Component, ComponentResult, SupportedLanguage, UsageInfo, CodeLocation, AnalysisWarning } from '../../types.js';
 
 export class JavaScriptAdapter extends BaseLanguageAdapter {
@@ -42,6 +43,9 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
    * Analyze components for reachability
    */
   async analyze(sourceDir: string, components: Component[]): Promise<ComponentResult[]> {
+    // Detect monorepo/workspace
+    const workspace = await detectWorkspace(sourceDir);
+    
     // Find all JS/TS files
     const files = await this.findSourceFiles(sourceDir);
     
@@ -103,6 +107,12 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
     const results: ComponentResult[] = [];
 
     for (const component of components) {
+      // Skip internal workspace packages
+      if (isInternalPackage(component.name, workspace)) {
+        results.push(this.notReachable(component, ['Internal workspace package - skipped']));
+        continue;
+      }
+      
       const result = this.analyzeComponent(
         component, 
         allImports, 
