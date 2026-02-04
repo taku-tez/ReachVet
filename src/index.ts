@@ -210,3 +210,24 @@ export {
   type EPSSQueryOptions,
   type EPSSReport
 } from './epss/index.js';
+
+// KEV (Known Exploited Vulnerabilities) integration
+export {
+  KEVClient,
+  KEVCache,
+  getKEVClient,
+  getKEVCache,
+  fetchKEVWithCache,
+  createKEVReport,
+  formatKEVReport,
+  toKEVJson,
+  calculateKEVPriority,
+  extractCVEsFromText,
+  KEV_CATALOG_URL,
+  type KEVEntry,
+  type KEVCatalog,
+  type KEVLookupResult,
+  type KEVReportEntry,
+  type KEVReport,
+  type KEVPriorityScore
+} from './kev/index.js';

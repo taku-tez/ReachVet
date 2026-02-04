@@ -1411,5 +1411,161 @@ program
     }
   });
 
+// === kev command ===
+program
+  .command('kev')
+  .description('KEV (Known Exploited Vulnerabilities) catalog lookup')
+  .option('-c, --components <file>', 'JSON file with vulnerability list')
+  .option('--sbom <file>', 'SBOM file (CycloneDX or SPDX) with vulnerability annotations')
+  .option('--stdin', 'Read vulnerability list from stdin')
+  .option('--cve <cve...>', 'Query specific CVE IDs directly')
+  .option('--json', 'Output as JSON')
+  .option('--cache-dir <dir>', 'KEV cache directory', '.reachvet-cache')
+  .option('--no-cache', 'Disable KEV caching')
+  .option('--refresh', 'Force refresh KEV catalog from CISA')
+  .option('--catalog-info', 'Show KEV catalog information')
+  .option('--ransomware', 'Show only ransomware-related KEVs')
+  .option('--past-due', 'Show only past-due KEVs')
+  .option('-v, --verbose', 'Show progress')
+  .action(async (options) => {
+    const {
+      KEVClient,
+      fetchKEVWithCache,
+      createKEVReport,
+      formatKEVReport,
+      toKEVJson,
+    } = await import('./kev/index.js');
+
+    const { extractCVEs } = await import('./epss/index.js');
+
+    try {
+      // Fetch KEV catalog
+      if (options.verbose) {
+        console.error(chalk.cyan(`ReachVet v${VERSION} - KEV Catalog Lookup`));
+        console.error(chalk.gray('Fetching KEV catalog from CISA...'));
+      }
+
+      const catalog = await fetchKEVWithCache({
+        cacheDir: options.cacheDir,
+        noCache: !options.cache,
+        forceRefresh: options.refresh,
+      });
+
+      const client = new KEVClient();
+      client.setCatalog(catalog);
+
+      if (options.verbose) {
+        const info = client.getCatalogInfo();
+        console.error(chalk.gray(`KEV Catalog v${info?.version}, ${info?.count} vulnerabilities`));
+      }
+
+      // Catalog info only
+      if (options.catalogInfo) {
+        const info = client.getCatalogInfo();
+        if (options.json) {
+          console.log(JSON.stringify(info, null, 2));
+        } else {
+          console.log(chalk.cyan('KEV Catalog Information'));
+          console.log(`  Version:     ${info?.version}`);
+          console.log(`  Date:        ${info?.date}`);
+          console.log(`  Total CVEs:  ${info?.count}`);
+          console.log(`  Ransomware:  ${client.getRansomwareRelated().length}`);
+          console.log(`  Past Due:    ${client.getPastDue().length}`);
+        }
+        return;
+      }
+
+      // List ransomware or past-due only
+      if (options.ransomware) {
+        const entries = client.getRansomwareRelated();
+        if (options.json) {
+          console.log(JSON.stringify(entries, null, 2));
+        } else {
+          console.log(chalk.red.bold(`🔴 Ransomware-Related KEVs (${entries.length})`));
+          console.log('');
+          for (const entry of entries) {
+            console.log(`  ${entry.cveID} - ${entry.vendorProject} ${entry.product}`);
+            console.log(chalk.gray(`    ${entry.vulnerabilityName}`));
+          }
+        }
+        return;
+      }
+
+      if (options.pastDue) {
+        const entries = client.getPastDue();
+        if (options.json) {
+          console.log(JSON.stringify(entries, null, 2));
+        } else {
+          console.log(chalk.yellow.bold(`⏰ Past-Due KEVs (${entries.length})`));
+          console.log('');
+          for (const entry of entries) {
+            console.log(`  ${entry.cveID} - Due: ${entry.dueDate}`);
+            console.log(chalk.gray(`    ${entry.vendorProject} ${entry.product}`));
+          }
+        }
+        return;
+      }
+
+      // Get CVE list
+      let cves: string[] = [];
+
+      // Helper to extract vuln data from component
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const extractVulnData = (c: any) => {
+        return (c.vulnerabilities || []).map((v: any) => ({
+          id: v.id,
+          aliases: v.aliases ?? [],
+        }));
+      };
+
+      if (options.cve && options.cve.length > 0) {
+        cves = options.cve.map((c: string) => c.toUpperCase());
+      } else if (options.stdin) {
+        const components = await parseFromStdin();
+        const vulnData = components.flatMap(extractVulnData);
+        cves = extractCVEs(vulnData);
+      } else if (options.sbom) {
+        const components = await parseSBOM(options.sbom);
+        const vulnData = components.flatMap(extractVulnData);
+        cves = extractCVEs(vulnData);
+      } else if (options.components) {
+        const components = await parseSimpleJson(options.components);
+        const vulnData = components.flatMap(extractVulnData);
+        cves = extractCVEs(vulnData);
+      } else {
+        console.error(chalk.red('Error: Provide --cve, --components, --sbom, --stdin, --catalog-info, --ransomware, or --past-due'));
+        process.exit(1);
+      }
+
+      if (cves.length === 0) {
+        console.error(chalk.yellow('No CVEs found to check against KEV'));
+        process.exit(0);
+      }
+
+      if (options.verbose) {
+        console.error(chalk.gray(`Checking ${cves.length} CVEs against KEV catalog...`));
+      }
+
+      // Create report
+      const report = createKEVReport(client, cves);
+
+      // Output
+      if (options.json) {
+        console.log(toKEVJson(report));
+      } else {
+        console.log(formatKEVReport(report));
+      }
+
+      // Exit code: 1 if any CVE is in KEV
+      if (report.summary.inKEV > 0) {
+        process.exit(1);
+      }
+    } catch (err) {
+      const error = err as Error;
+      console.error(chalk.red(`Error: ${error.message}`));
+      process.exit(1);
+    }
+  });
+
 // Run CLI
 program.parse();

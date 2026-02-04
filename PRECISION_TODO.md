@@ -607,6 +607,39 @@ Status: ✅ Completed (2026-02-04 13:48)
 - 37 new tests (epss.test.ts) ✅
 - Total: 1149 tests passing (v0.5.10) ✅
 
+## Batch 45: KEV Integration ✅ DONE (2026-02-05 04:18)
+- src/kev/index.ts: KEV (Known Exploited Vulnerabilities) catalog module ✅
+  - KEVClient: Fetch and query CISA KEV catalog ✅
+  - KEVCache: Local caching with 24h TTL and disk persistence ✅
+  - KEVEntry/KEVCatalog/KEVLookupResult types ✅
+  - Batch lookup support ✅
+  - Ransomware/past-due filters ✅
+  - Vendor/product filters ✅
+- Priority Calculator ✅
+  - calculateKEVPriority(): KEV + EPSS + CVSS + reachability scoring ✅
+  - KEV bonus: +30 base, +15 ransomware, +10 past-due ✅
+  - KEV = minimum HIGH priority (strong exploitation signal) ✅
+  - KEVPriorityScore type with components breakdown ✅
+- Report Generation ✅
+  - createKEVReport(): Report from CVE list with matched/unmatched ✅
+  - formatKEVReport(): Text report with emojis and indicators ✅
+  - toKEVJson(): JSON output ✅
+- CLI integration ✅
+  - `reachvet kev` command ✅
+  - --cve: Query specific CVE IDs ✅
+  - --components, --sbom, --stdin: Input from files ✅
+  - --catalog-info: Show KEV catalog metadata ✅
+  - --ransomware: List ransomware-related KEVs ✅
+  - --past-due: List past-due KEVs ✅
+  - --json, --refresh, --cache-dir, --no-cache ✅
+- Exported from main package ✅
+  - KEVClient, KEVCache, fetchKEVWithCache, createKEVReport ✅
+  - formatKEVReport, toKEVJson, calculateKEVPriority ✅
+  - extractCVEsFromText, getKEVClient, getKEVCache ✅
+  - Types: KEVEntry, KEVCatalog, KEVLookupResult, KEVReport, KEVPriorityScore ✅
+- 38 new tests (kev.test.ts) ✅
+- Total: 1187 tests passing (v0.5.11) ✅
+
 ## Batch 42: JSON Schema for Configuration ✅ DONE (2026-02-05 00:58)
 - src/config/schema.ts: JSON Schema generator ✅
   - Draft-07 schema with full type definitions ✅
@@ -656,6 +689,15 @@ Status: ✅ Completed (2026-02-04 13:48)
 ## Progress Log
 
 ### 2026-02-05
+- 04:18 Batch 45 KEV Integration完了 - 38 new tests, 1187 total
+  - src/kev/index.ts: KEV (Known Exploited Vulnerabilities) catalog module
+  - KEVClient: Fetch and query CISA KEV catalog (with retries)
+  - KEVCache: Local caching with 24h TTL
+  - calculateKEVPriority: KEV + EPSS + CVSS + reachability priority scoring
+  - KEV = minimum HIGH priority (actively exploited)
+  - Ransomware bonus (+15), past-due bonus (+10)
+  - CLI: `reachvet kev` command with --catalog-info, --ransomware, --past-due
+  - Exported from main package with full type definitions
 - 03:10 Batch 44 EPSS Integration完了 - 37 new tests, 1149 total
   - src/epss/index.ts: EPSS (Exploit Prediction Scoring System) module
   - EPSSClient: Query FIRST.org EPSS API with retries
