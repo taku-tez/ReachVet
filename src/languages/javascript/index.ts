@@ -8,6 +8,7 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { BaseLanguageAdapter } from '../base.js';
 import { parseSource, findNamespaceUsages, checkImportUsage, type ImportInfo } from './parser.js';
+import { analyzeCallGraph, checkImportedMembersCalled } from './callgraph.js';
 import { matchesComponent, extractUsedMembers, getPrimaryImportStyle } from './detector.js';
 import { resolveReexportChains, type ReexportChain } from './reexport.js';
 import type { Component, ComponentResult, SupportedLanguage, UsageInfo, CodeLocation, AnalysisWarning } from '../../types.js';
@@ -257,6 +258,31 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
         const namespaceUsages = findNamespaceUsages(source, localNames, file);
         usedMembers = [...new Set([...usedMembers, ...namespaceUsages])];
       }
+    }
+
+    // Call graph analysis: check if imported members are actually called
+    const calledMembers = new Set<string>();
+    const referencedOnlyMembers = new Set<string>();
+    
+    for (const { source, file, import: imp } of matchingImports) {
+      const callGraph = analyzeCallGraph(source, file);
+      const membersToCheck = imp.namedImports.length > 0 
+        ? imp.namedImports 
+        : usedMembers;
+      
+      const { called, uncertain } = checkImportedMembersCalled(
+        membersToCheck,
+        callGraph,
+        imp.localName
+      );
+      
+      called.forEach(m => calledMembers.add(m));
+      uncertain.forEach(m => referencedOnlyMembers.add(m));
+    }
+
+    // Update usedMembers with call graph info
+    if (calledMembers.size > 0) {
+      usedMembers = [...new Set([...usedMembers, ...calledMembers])];
     }
 
     // Check for unused imports (imported but never used in code)
