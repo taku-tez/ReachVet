@@ -231,3 +231,22 @@ export {
   type KEVReport,
   type KEVPriorityScore
 } from './kev/index.js';
+
+// Monorepo detection and multi-project analysis
+export {
+  detectMonorepo,
+  discoverProjects,
+  analyzeMonorepo,
+  formatMonorepoReport,
+  toMonorepoJson,
+  formatMonorepoMarkdown,
+  type MonorepoType,
+  type MonorepoInfo,
+  type ProjectInfo,
+  type MonorepoAnalysisOptions,
+  type ProjectAnalysisResult,
+  type MonorepoAnalysisResult,
+  type MonorepoSummary,
+  type SharedDependency,
+  type VulnerabilitySummary
+} from './monorepo/index.js';

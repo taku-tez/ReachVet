@@ -1567,5 +1567,117 @@ program
     }
   });
 
+// === monorepo command ===
+program
+  .command('monorepo')
+  .description('Analyze monorepo with multiple projects')
+  .option('-d, --dir <dir>', 'Root directory to scan', '.')
+  .option('--detect', 'Detect monorepo type only (no analysis)')
+  .option('--list', 'List discovered projects only')
+  .option('-p, --parallel', 'Enable parallel analysis')
+  .option('--concurrency <n>', 'Number of concurrent analyses', parseInt)
+  .option('--include-dev', 'Include devDependencies')
+  .option('--osv', 'Enable OSV vulnerability lookup')
+  .option('--json', 'Output as JSON')
+  .option('--markdown', 'Output as Markdown')
+  .option('-v, --verbose', 'Show progress')
+  .action(async (options) => {
+    const {
+      detectMonorepo,
+      discoverProjects,
+      analyzeMonorepo,
+      formatMonorepoReport,
+      toMonorepoJson,
+      formatMonorepoMarkdown,
+    } = await import('./monorepo/index.js');
+
+    try {
+      const rootDir = options.dir || '.';
+
+      // Detect monorepo
+      if (options.verbose) {
+        console.error(chalk.cyan(`ReachVet v${VERSION} - Monorepo Analysis`));
+        console.error(chalk.gray(`Scanning ${rootDir}...`));
+      }
+
+      const monorepo = await detectMonorepo(rootDir);
+
+      if (!monorepo) {
+        console.error(chalk.yellow('No monorepo detected. Use --dir to specify a different root.'));
+        process.exit(1);
+      }
+
+      // Detect only
+      if (options.detect) {
+        if (options.json) {
+          console.log(JSON.stringify(monorepo, null, 2));
+        } else {
+          console.log(chalk.cyan('Monorepo Detected'));
+          console.log(`  Type:       ${monorepo.type}`);
+          console.log(`  Root:       ${monorepo.rootDir}`);
+          console.log(`  Config:     ${monorepo.configFile || 'N/A'}`);
+          console.log(`  Workspaces: ${monorepo.workspaces.length}`);
+          for (const ws of monorepo.workspaces) {
+            console.log(chalk.gray(`    - ${ws}`));
+          }
+        }
+        return;
+      }
+
+      // List projects only
+      if (options.list) {
+        const projects = await discoverProjects(monorepo, {
+          includeDevDependencies: options.includeDev,
+        });
+
+        if (options.json) {
+          console.log(JSON.stringify(projects, null, 2));
+        } else {
+          console.log(chalk.cyan(`Projects in ${monorepo.type} monorepo:`));
+          console.log('');
+          for (const p of projects) {
+            console.log(`  📦 ${chalk.bold(p.name)} (${p.language})`);
+            console.log(`     Path: ${p.relativePath}`);
+            console.log(`     Deps: ${p.dependencies.length}`);
+          }
+        }
+        return;
+      }
+
+      // Full analysis
+      if (options.verbose) {
+        console.error(chalk.gray(`Found ${monorepo.type} monorepo with ${monorepo.workspaces.length} workspaces`));
+        console.error(chalk.gray('Starting analysis...'));
+      }
+
+      const result = await analyzeMonorepo({
+        rootDir,
+        parallel: options.parallel,
+        concurrency: options.concurrency || 4,
+        includeDevDependencies: options.includeDev,
+        osv: options.osv,
+        verbose: options.verbose,
+      });
+
+      // Output
+      if (options.json) {
+        console.log(toMonorepoJson(result));
+      } else if (options.markdown) {
+        console.log(formatMonorepoMarkdown(result));
+      } else {
+        console.log(formatMonorepoReport(result));
+      }
+
+      // Exit code
+      if (result.summary.reachableVulnerabilities > 0) {
+        process.exit(1);
+      }
+    } catch (err) {
+      const error = err as Error;
+      console.error(chalk.red(`Error: ${error.message}`));
+      process.exit(1);
+    }
+  });
+
 // Run CLI
 program.parse();
