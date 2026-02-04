@@ -895,9 +895,10 @@ program
   .option('-f, --format <format>', 'Config format: json, js', 'json')
   .option('--ignore', 'Also create .reachvetignore file')
   .option('--ignore-only', 'Only create .reachvetignore file (skip config)')
+  .option('--schema', 'Also create reachvet.schema.json for IDE autocompletion')
   .option('--force', 'Overwrite existing files')
   .action(async (options) => {
-    const { generateSampleConfig, findConfigPath } = await import('./config/index.js');
+    const { generateSampleConfig, findConfigPath, generateSchemaFile, generateConfigWithSchema } = await import('./config/index.js');
     const { existsSync } = await import('node:fs');
     
     const createdFiles: string[] = [];
@@ -919,6 +920,18 @@ program
       }
     }
     
+    // Create schema file if requested
+    if (options.schema) {
+      const schemaFile = 'reachvet.schema.json';
+      if (existsSync(schemaFile) && !options.force) {
+        console.error(chalk.yellow(`Schema file already exists: ${schemaFile}`));
+        console.error(chalk.gray('Use --force to overwrite'));
+      } else {
+        await writeFile(schemaFile, generateSchemaFile());
+        createdFiles.push(schemaFile);
+      }
+    }
+    
     // Create config file unless --ignore-only
     if (!options.ignoreOnly) {
       // Check for existing config
@@ -929,8 +942,10 @@ program
         process.exit(1);
       }
       
-      // Generate config content
-      const content = generateSampleConfig(options.format as 'json' | 'js');
+      // Generate config content - with schema reference if schema was created
+      const content = options.schema && options.format !== 'js'
+        ? generateConfigWithSchema()
+        : generateSampleConfig(options.format as 'json' | 'js');
       
       // Determine filename
       let filename: string;
@@ -954,6 +969,29 @@ program
       console.log();
       console.log('Edit the files to customize ReachVet behavior.');
       console.log('Documentation: https://github.com/taku-tez/ReachVet#configuration');
+    }
+  });
+
+// === schema command ===
+program
+  .command('schema')
+  .description('Output JSON Schema for configuration files')
+  .option('-o, --output <file>', 'Write schema to file')
+  .option('--compact', 'Output compact JSON (no indentation)')
+  .action(async (options) => {
+    const { formatSchema } = await import('./config/index.js');
+    
+    const indent = options.compact ? 0 : 2;
+    const schema = formatSchema(indent);
+    
+    if (options.output) {
+      await writeFile(options.output, schema + '\n');
+      console.log(chalk.green(`✓ Schema written to ${options.output}`));
+      console.log();
+      console.log('Add to your .reachvetrc.json for IDE autocompletion:');
+      console.log(chalk.gray('  "$schema": "./' + options.output + '"'));
+    } else {
+      console.log(schema);
     }
   });
 

@@ -80,7 +80,16 @@ export {
   validateConfig,
   generateSampleConfig,
   findConfigPath,
-  type ReachVetConfig
+  // JSON Schema
+  generateConfigSchema,
+  formatSchema,
+  generateSchemaFile,
+  generateConfigWithSchema,
+  SUPPORTED_LANGUAGES,
+  OUTPUT_FORMATS,
+  FAIL_ON_OPTIONS,
+  type ReachVetConfig,
+  type JSONSchemaType
 } from './config/index.js';
 
 // API Server

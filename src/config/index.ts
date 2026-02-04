@@ -14,6 +14,18 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+// Re-export schema utilities
+export {
+  generateConfigSchema,
+  formatSchema,
+  generateSchemaFile,
+  generateConfigWithSchema,
+  SUPPORTED_LANGUAGES,
+  OUTPUT_FORMATS,
+  FAIL_ON_OPTIONS
+} from './schema.js';
+export type { JSONSchemaType } from './schema.js';
+
 export interface ReachVetConfig {
   // Analysis options
   language?: string;

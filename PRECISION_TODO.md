@@ -544,6 +544,27 @@ Status: ✅ Completed (2026-02-04 13:48)
 - 35 new tests ✅
 - Total: 1015 tests passing (v0.5.6) ✅
 
+## Batch 42: JSON Schema for Configuration ✅ DONE (2026-02-05 00:58)
+- src/config/schema.ts: JSON Schema generator ✅
+  - Draft-07 schema with full type definitions ✅
+  - All 18 languages in enum ✅
+  - Nested object schemas (cache, watch, ci, server, license) ✅
+  - Descriptions, examples, defaults, constraints ✅
+- CLI commands ✅
+  - `reachvet schema` - Output JSON Schema to stdout or file ✅
+  - `reachvet schema -o <file>` - Write schema to file ✅
+  - `reachvet schema --compact` - Compact JSON output ✅
+  - `reachvet init --schema` - Create schema file with config ✅
+- Config with $schema reference ✅
+  - generateConfigWithSchema() for IDE autocompletion ✅
+  - $schema points to local reachvet.schema.json ✅
+- Exported from main package ✅
+  - generateConfigSchema, formatSchema, generateSchemaFile ✅
+  - generateConfigWithSchema, SUPPORTED_LANGUAGES ✅
+  - OUTPUT_FORMATS, FAIL_ON_OPTIONS, JSONSchemaType ✅
+- 23 new tests (schema.test.ts) ✅
+- Total: 1076 tests passing (v0.5.8) ✅
+
 ## Batch 41: Ignore File Support ✅ DONE (2026-02-04 23:52)
 - src/ignore/index.ts: Gitignore-style ignore file support ✅
   - .reachvetignore file parsing ✅
@@ -570,6 +591,14 @@ Status: ✅ Completed (2026-02-04 13:48)
 ---
 
 ## Progress Log
+
+### 2026-02-05
+- 00:58 Batch 42 JSON Schema for Configuration完了 - 23 new tests, 1076 total
+  - src/config/schema.ts: JSON Schema generator (Draft-07)
+  - CLI: `reachvet schema` command, `reachvet init --schema` option
+  - generateConfigWithSchema() for IDE autocompletion
+  - Exported constants: SUPPORTED_LANGUAGES, OUTPUT_FORMATS, FAIL_ON_OPTIONS
+  - All nested object schemas: cache, watch, ci, server, license
 
 ### 2026-02-04
 - 23:52 Batch 41 Ignore File Support完了 - 38 new tests, 1053 total
