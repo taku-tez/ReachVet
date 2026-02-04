@@ -341,11 +341,23 @@ describe('ReachVetServer', () => {
       expect((response.body as { error: string }).error).toContain('package.name and package.ecosystem required');
     });
 
-    it('POST /osv/query should accept valid request', async () => {
+    it('POST /osv/query should require version', async () => {
       const response = await request(port, '/osv/query', {
         method: 'POST',
         body: {
           package: { name: 'lodash', ecosystem: 'npm' },
+        },
+      });
+      expect(response.status).toBe(400);
+      expect((response.body as { error: string }).error).toBe('version required');
+    });
+
+    it('POST /osv/query should accept valid request with version', async () => {
+      const response = await request(port, '/osv/query', {
+        method: 'POST',
+        body: {
+          package: { name: 'lodash', ecosystem: 'npm' },
+          version: '4.17.21',
         },
       });
       // May return vulns or empty array, or 500 if OSV is down
@@ -365,6 +377,7 @@ describe('ReachVetServer', () => {
     it('POST /osv/batch should limit to 100 queries', async () => {
       const queries = Array.from({ length: 101 }, (_, i) => ({
         package: { name: `pkg-${i}`, ecosystem: 'npm' },
+        version: '1.0.0',
       }));
       
       const response = await request(port, '/osv/batch', {
@@ -373,6 +386,19 @@ describe('ReachVetServer', () => {
       });
       expect(response.status).toBe(400);
       expect((response.body as { error: string }).error).toBe('Maximum 100 queries per batch');
+    });
+
+    it('POST /osv/batch should require version in each query', async () => {
+      const queries = [
+        { package: { name: 'lodash', ecosystem: 'npm' } }, // missing version
+      ];
+      
+      const response = await request(port, '/osv/batch', {
+        method: 'POST',
+        body: { queries },
+      });
+      expect(response.status).toBe(400);
+      expect((response.body as { error: string }).error).toContain('requires package.name, package.ecosystem, and version');
     });
   });
 

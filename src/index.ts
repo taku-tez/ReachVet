@@ -91,3 +91,21 @@ export {
   type ApiRequest,
   type ApiResponse
 } from './server/index.js';
+
+// Output formatters
+export {
+  toSarif,
+  toJUnitXml,
+  toJUnitXmlMultiple,
+  toCycloneDX,
+  toSPDX,
+  generateVEXStatements,
+  generateGraph,
+  type SarifOutput,
+  type JUnitOptions,
+  type SBOMOptions,
+  type CycloneDXBom,
+  type SPDXDocument,
+  type VEXStatement,
+  type GraphOptions
+} from './output/index.js';

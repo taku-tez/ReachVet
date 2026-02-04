@@ -3,7 +3,7 @@
  * Compatible with Jenkins, GitLab CI, Azure DevOps, CircleCI, etc.
  */
 
-import type { ReachabilityResult, DependencyInfo, VulnerableFunction, AnalysisWarning } from '../types.js';
+import type { AnalysisOutput, ComponentResult, AnalysisWarning } from '../types.js';
 
 export interface JUnitOptions {
   /** Test suite name (default: 'ReachVet Analysis') */
@@ -61,11 +61,12 @@ function formatTime(ms: number): string {
 }
 
 /**
- * Create test case from dependency
+ * Create test case from component result
  */
-function createDependencyTestCase(dep: DependencyInfo, analysisTime: number): TestCase {
-  const classname = `reachvet.dependencies.${dep.ecosystem || 'unknown'}`;
-  const name = `${dep.name}@${dep.version || 'unknown'}`;
+function createComponentTestCase(result: ComponentResult, analysisTime: number): TestCase {
+  const { component, status, usage } = result;
+  const classname = `reachvet.dependencies.${component.ecosystem || 'unknown'}`;
+  const name = `${component.name}@${component.version || 'unknown'}`;
   
   const testCase: TestCase = {
     name,
@@ -73,26 +74,28 @@ function createDependencyTestCase(dep: DependencyInfo, analysisTime: number): Te
     time: analysisTime / 1000
   };
   
-  if (dep.vulnerableFunctions && dep.vulnerableFunctions.length > 0) {
-    const reachable = dep.vulnerableFunctions.filter(vf => vf.isReachable);
-    if (reachable.length > 0) {
-      // Vulnerable and reachable - failure
-      testCase.failure = {
-        type: 'VulnerableReachable',
-        message: `${reachable.length} vulnerable function(s) reachable`,
-        content: reachable.map(vf => 
-          `Function: ${vf.functionName}\n` +
-          `CVE: ${vf.cveId || 'N/A'}\n` +
-          `Severity: ${vf.severity || 'unknown'}\n` +
-          `Location: ${vf.location || 'N/A'}`
-        ).join('\n\n')
-      };
-    } else {
-      // Has vulnerable functions but not reachable - skipped
-      testCase.skipped = {
-        message: `${dep.vulnerableFunctions.length} vulnerable function(s) found but not reachable`
-      };
-    }
+  const hasVuln = component.vulnerabilities && component.vulnerabilities.length > 0;
+  const isReachable = status === 'reachable' || status === 'imported';
+  
+  if (hasVuln && isReachable) {
+    // Vulnerable and reachable - failure
+    const vulns = component.vulnerabilities!;
+    testCase.failure = {
+      type: 'VulnerableReachable',
+      message: `${vulns.length} vulnerability(ies) in reachable dependency`,
+      content: vulns.map(v => 
+        `ID: ${v.id}\n` +
+        `Severity: ${v.severity || 'unknown'}\n` +
+        (v.affectedFunctions ? `Affected: ${v.affectedFunctions.join(', ')}\n` : '') +
+        (usage?.usedMembers ? `Used: ${usage.usedMembers.join(', ')}` : '')
+      ).join('\n\n')
+    };
+  } else if (hasVuln) {
+    // Has vulnerabilities but not reachable - skipped (informational)
+    const vulns = component.vulnerabilities!;
+    testCase.skipped = {
+      message: `${vulns.length} vulnerability(ies) found but not reachable (status: ${status})`
+    };
   }
   
   return testCase;
@@ -101,9 +104,9 @@ function createDependencyTestCase(dep: DependencyInfo, analysisTime: number): Te
 /**
  * Create test case from warning
  */
-function createWarningTestCase(warning: AnalysisWarning): TestCase {
+function createWarningTestCase(warning: AnalysisWarning, componentName: string): TestCase {
   const classname = `reachvet.warnings.${warning.code}`;
-  const name = warning.message;
+  const name = `${componentName}: ${warning.message}`;
   
   const testCase: TestCase = {
     name,
@@ -111,13 +114,7 @@ function createWarningTestCase(warning: AnalysisWarning): TestCase {
     time: 0
   };
   
-  if (warning.severity === 'error') {
-    testCase.failure = {
-      type: warning.code,
-      message: warning.message,
-      content: warning.location ? `Location: ${warning.location.file}:${warning.location.line}` : ''
-    };
-  } else if (warning.severity === 'warning') {
+  if (warning.severity === 'warning') {
     testCase.skipped = {
       message: warning.location ? `${warning.location.file}:${warning.location.line}` : ''
     };
@@ -127,9 +124,9 @@ function createWarningTestCase(warning: AnalysisWarning): TestCase {
 }
 
 /**
- * Convert ReachabilityResult to JUnit XML format
+ * Convert AnalysisOutput to JUnit XML format
  */
-export function toJUnitXml(result: ReachabilityResult, options: JUnitOptions = {}): string {
+export function toJUnitXml(output: AnalysisOutput, options: JUnitOptions = {}): string {
   const {
     suiteName = 'ReachVet Analysis',
     includeWarnings = true,
@@ -138,24 +135,25 @@ export function toJUnitXml(result: ReachabilityResult, options: JUnitOptions = {
   } = options;
   
   const testcases: TestCase[] = [];
-  const analysisTime = result.summary.analysisTimeMs || 0;
-  const perDepTime = result.dependencies.length > 0 
-    ? analysisTime / result.dependencies.length 
+  const analysisTime = output.metadata?.analysisDurationMs || 0;
+  const perDepTime = output.results.length > 0 
+    ? analysisTime / output.results.length 
     : 0;
   
-  // Add dependency test cases
-  for (const dep of result.dependencies) {
-    const hasIssues = dep.vulnerableFunctions && dep.vulnerableFunctions.length > 0;
+  // Add component test cases
+  for (const result of output.results) {
+    const hasVuln = result.component.vulnerabilities && result.component.vulnerabilities.length > 0;
+    const isReachable = result.status === 'reachable' || result.status === 'imported';
     
-    if (includeAll || hasIssues || dep.isReachable) {
-      testcases.push(createDependencyTestCase(dep, perDepTime));
+    if (includeAll || hasVuln || isReachable) {
+      testcases.push(createComponentTestCase(result, perDepTime));
     }
-  }
-  
-  // Add warning test cases
-  if (includeWarnings && result.warnings) {
-    for (const warning of result.warnings) {
-      testcases.push(createWarningTestCase(warning));
+    
+    // Add warning test cases for this component
+    if (includeWarnings && result.warnings) {
+      for (const warning of result.warnings) {
+        testcases.push(createWarningTestCase(warning, result.component.name));
+      }
     }
   }
   
@@ -213,11 +211,11 @@ function renderJUnitXml(suite: TestSuite, pretty: boolean): string {
 }
 
 /**
- * Convert multiple ReachabilityResults to JUnit XML format
+ * Convert multiple AnalysisOutputs to JUnit XML format
  * Useful for multi-project/monorepo analysis
  */
 export function toJUnitXmlMultiple(
-  results: Array<{ name: string; result: ReachabilityResult }>,
+  results: Array<{ name: string; output: AnalysisOutput }>,
   options: JUnitOptions = {}
 ): string {
   const { pretty = true, includeWarnings = true, includeAll = false } = options;
@@ -232,24 +230,25 @@ export function toJUnitXmlMultiple(
   
   const suites: string[] = [];
   
-  for (const { name, result } of results) {
+  for (const { name, output } of results) {
     const testcases: TestCase[] = [];
-    const analysisTime = result.summary.analysisTimeMs || 0;
-    const perDepTime = result.dependencies.length > 0 
-      ? analysisTime / result.dependencies.length 
+    const analysisTime = output.metadata?.analysisDurationMs || 0;
+    const perDepTime = output.results.length > 0 
+      ? analysisTime / output.results.length 
       : 0;
     
-    for (const dep of result.dependencies) {
-      const hasIssues = dep.vulnerableFunctions && dep.vulnerableFunctions.length > 0;
+    for (const result of output.results) {
+      const hasVuln = result.component.vulnerabilities && result.component.vulnerabilities.length > 0;
+      const isReachable = result.status === 'reachable' || result.status === 'imported';
       
-      if (includeAll || hasIssues || dep.isReachable) {
-        testcases.push(createDependencyTestCase(dep, perDepTime));
+      if (includeAll || hasVuln || isReachable) {
+        testcases.push(createComponentTestCase(result, perDepTime));
       }
-    }
-    
-    if (includeWarnings && result.warnings) {
-      for (const warning of result.warnings) {
-        testcases.push(createWarningTestCase(warning));
+      
+      if (includeWarnings && result.warnings) {
+        for (const warning of result.warnings) {
+          testcases.push(createWarningTestCase(warning, result.component.name));
+        }
       }
     }
     

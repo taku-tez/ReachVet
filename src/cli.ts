@@ -10,7 +10,7 @@ import { Analyzer } from './core/analyzer.js';
 import { OSVClient } from './osv/index.js';
 import { parseSimpleJson, parseFromStdin, parseSBOM } from './input/index.js';
 import { listSupportedLanguages, detectLanguage } from './languages/index.js';
-import { toSarif, generateGraph, printAnnotations, toJUnitXml } from './output/index.js';
+import { toSarif, generateGraph, printAnnotations, toJUnitXml, toCycloneDX, toSPDX, generateVEXStatements } from './output/index.js';
 import { startWatch, Watcher } from './watch/index.js';
 import {
   isGitRepository,
@@ -55,6 +55,12 @@ program
   .option('--junit-all', 'Include all dependencies in JUnit output')
   .option('--annotations', 'Output GitHub Actions annotations')
   .option('--annotations-notices', 'Include notice-level annotations for imported deps')
+  .option('--sbom-cyclonedx [file]', 'Output in CycloneDX 1.5 SBOM format')
+  .option('--sbom-spdx [file]', 'Output in SPDX 2.3 SBOM format')
+  .option('--sbom-include-unreachable', 'Include unreachable components in SBOM output')
+  .option('--vex [file]', 'Output VEX (Vulnerability Exploitability eXchange) statements')
+  .option('--app-name <name>', 'Application name for SBOM metadata', 'analyzed-application')
+  .option('--app-version <version>', 'Application version for SBOM metadata', '1.0.0')
   .action(async (options) => {
     try {
       // Load components
@@ -125,25 +131,8 @@ program
           : JSON.stringify(sarif);
         console.log(json);
       } else if (options.junit !== undefined) {
-        // Convert to ReachabilityResult format for JUnit output
-        const junitResult = {
-          dependencies: output.results.map(r => ({
-            name: r.name,
-            version: r.version,
-            isReachable: r.reachable,
-            ecosystem: r.ecosystem,
-            vulnerableFunctions: r.vulnerableFunctions,
-          })),
-          summary: {
-            totalDependencies: output.summary.total,
-            reachableDependencies: output.summary.reachable,
-            vulnerableFunctionsCount: output.summary.vulnerableReachable,
-            reachableVulnerableFunctionsCount: output.summary.vulnerableReachable,
-            analysisTimeMs: 0,
-          },
-          warnings: output.warnings,
-        };
-        const junitXml = toJUnitXml(junitResult, {
+        // Output JUnit XML format
+        const junitXml = toJUnitXml(output, {
           suiteName: 'ReachVet Analysis',
           includeWarnings: true,
           includeAll: options.junitAll ?? false,
@@ -156,6 +145,56 @@ program
           }
         } else {
           console.log(junitXml);
+        }
+      } else if (options.sbomCyclonedx !== undefined) {
+        // Output CycloneDX SBOM
+        const sbom = toCycloneDX(output, {
+          includeUnreachable: options.sbomIncludeUnreachable,
+          includeOccurrences: true,
+          appName: options.appName,
+          appVersion: options.appVersion,
+        });
+        const json = options.pretty
+          ? JSON.stringify(sbom, null, 2)
+          : JSON.stringify(sbom);
+        if (typeof options.sbomCyclonedx === 'string') {
+          await writeFile(options.sbomCyclonedx, json, 'utf-8');
+          if (options.verbose) {
+            console.error(chalk.green(`CycloneDX SBOM written to ${options.sbomCyclonedx}`));
+          }
+        } else {
+          console.log(json);
+        }
+      } else if (options.sbomSpdx !== undefined) {
+        // Output SPDX SBOM
+        const sbom = toSPDX(output, {
+          includeUnreachable: options.sbomIncludeUnreachable,
+          appName: options.appName,
+        });
+        const json = options.pretty
+          ? JSON.stringify(sbom, null, 2)
+          : JSON.stringify(sbom);
+        if (typeof options.sbomSpdx === 'string') {
+          await writeFile(options.sbomSpdx, json, 'utf-8');
+          if (options.verbose) {
+            console.error(chalk.green(`SPDX SBOM written to ${options.sbomSpdx}`));
+          }
+        } else {
+          console.log(json);
+        }
+      } else if (options.vex !== undefined) {
+        // Output VEX statements
+        const vexStatements = generateVEXStatements(output);
+        const json = options.pretty
+          ? JSON.stringify(vexStatements, null, 2)
+          : JSON.stringify(vexStatements);
+        if (typeof options.vex === 'string') {
+          await writeFile(options.vex, json, 'utf-8');
+          if (options.verbose) {
+            console.error(chalk.green(`VEX statements written to ${options.vex}`));
+          }
+        } else {
+          console.log(json);
         }
       } else if (options.annotations) {
         // Output GitHub Actions annotations
@@ -208,6 +247,12 @@ program
   .option('--osv-cache <dir>', 'OSV cache directory')
   .option('--osv-ttl <seconds>', 'OSV cache TTL in seconds', parseInt)
   .option('--junit [file]', 'Output in JUnit XML format (CI integration)')
+  .option('--sbom-cyclonedx [file]', 'Output in CycloneDX 1.5 SBOM format')
+  .option('--sbom-spdx [file]', 'Output in SPDX 2.3 SBOM format')
+  .option('--sbom-include-unreachable', 'Include unreachable components in SBOM output')
+  .option('--vex [file]', 'Output VEX (Vulnerability Exploitability eXchange) statements')
+  .option('--app-name <name>', 'Application name for SBOM metadata', 'analyzed-application')
+  .option('--app-version <version>', 'Application version for SBOM metadata', '1.0.0')
   .option('--junit-all', 'Include all dependencies in JUnit output')
   .option('--annotations', 'Output GitHub Actions annotations')
   .option('--annotations-notices', 'Include notice-level annotations for imported deps')
@@ -267,25 +312,8 @@ program
       }
 
       if (options.junit !== undefined) {
-        // Convert to ReachabilityResult format for JUnit output
-        const junitResult = {
-          dependencies: output.results.map(r => ({
-            name: r.name,
-            version: r.version,
-            isReachable: r.reachable,
-            ecosystem: r.ecosystem,
-            vulnerableFunctions: r.vulnerableFunctions,
-          })),
-          summary: {
-            totalDependencies: output.summary.total,
-            reachableDependencies: output.summary.reachable,
-            vulnerableFunctionsCount: output.summary.vulnerableReachable,
-            reachableVulnerableFunctionsCount: output.summary.vulnerableReachable,
-            analysisTimeMs: 0,
-          },
-          warnings: output.warnings,
-        };
-        const junitXml = toJUnitXml(junitResult, {
+        // Output JUnit XML format
+        const junitXml = toJUnitXml(output, {
           suiteName: 'ReachVet Analysis',
           includeWarnings: true,
           includeAll: options.junitAll ?? false,
@@ -296,6 +324,53 @@ program
           console.error(chalk.green(`JUnit XML written to ${options.junit}`));
         } else {
           console.log(junitXml);
+        }
+        return;
+      }
+
+      if (options.sbomCyclonedx !== undefined) {
+        // Output CycloneDX SBOM
+        const sbom = toCycloneDX(output, {
+          includeUnreachable: options.sbomIncludeUnreachable,
+          includeOccurrences: true,
+          appName: options.appName,
+          appVersion: options.appVersion,
+        });
+        const json = JSON.stringify(sbom, null, 2);
+        if (typeof options.sbomCyclonedx === 'string') {
+          await writeFile(options.sbomCyclonedx, json, 'utf-8');
+          console.error(chalk.green(`CycloneDX SBOM written to ${options.sbomCyclonedx}`));
+        } else {
+          console.log(json);
+        }
+        return;
+      }
+
+      if (options.sbomSpdx !== undefined) {
+        // Output SPDX SBOM
+        const sbom = toSPDX(output, {
+          includeUnreachable: options.sbomIncludeUnreachable,
+          appName: options.appName,
+        });
+        const json = JSON.stringify(sbom, null, 2);
+        if (typeof options.sbomSpdx === 'string') {
+          await writeFile(options.sbomSpdx, json, 'utf-8');
+          console.error(chalk.green(`SPDX SBOM written to ${options.sbomSpdx}`));
+        } else {
+          console.log(json);
+        }
+        return;
+      }
+
+      if (options.vex !== undefined) {
+        // Output VEX statements
+        const vexStatements = generateVEXStatements(output);
+        const json = JSON.stringify(vexStatements, null, 2);
+        if (typeof options.vex === 'string') {
+          await writeFile(options.vex, json, 'utf-8');
+          console.error(chalk.green(`VEX statements written to ${options.vex}`));
+        } else {
+          console.log(json);
         }
         return;
       }

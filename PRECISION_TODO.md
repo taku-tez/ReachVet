@@ -488,6 +488,35 @@ Status: ✅ Completed (2026-02-04 13:48)
 
 ---
 
+## 🚀 Phase 5+: Future Improvements (Candidates)
+
+## Batch 35: SBOM Generation 🟢 LOW
+- Generate CycloneDX/SPDX from analysis results
+- Include reachability metadata
+- Vulnerability annotations
+
+## Batch 36: VS Code Extension 🟡 MED
+- Real-time reachability analysis
+- Inline vulnerability warnings
+- Quick fixes/suggestions
+
+## Batch 37: LSP Integration 🟡 MED
+- Language Server Protocol support
+- Editor-agnostic integration
+- Hover information for imports
+
+## Batch 38: Transitive Dependency Analysis 🟢 LOW
+- Deep dependency tree traversal
+- Reachability through transitive deps
+- Call path visualization
+
+## Batch 39: License Compliance Check 🟢 LOW
+- SPDX license detection
+- License compatibility checking
+- Policy enforcement
+
+---
+
 ## Progress Log
 
 ### 2026-02-04

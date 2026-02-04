@@ -9,11 +9,11 @@ import * as http from 'http';
 import * as url from 'url';
 import { EventEmitter } from 'events';
 import { Analyzer } from '../core/analyzer.js';
-import { OSVClient, OSVCache } from '../osv/index.js';
+import { OSVClient } from '../osv/index.js';
 import { toSarif } from '../output/sarif.js';
-import { getAdapter, detectLanguage, parseJsSource } from '../languages/index.js';
 import { parseSBOM } from '../input/index.js';
-import type { AnalysisOutput, SupportedLanguage, Component } from '../types.js';
+import { parseJsSource } from '../languages/index.js';
+import type { SupportedLanguage, Component } from '../types.js';
 
 export interface ServerConfig {
   port: number;
@@ -63,7 +63,6 @@ export class ReachVetServer extends EventEmitter {
   private server: http.Server | null = null;
   private config: ServerConfig;
   private osvClient: OSVClient;
-  private osvCacheInstance: OSVCache | null = null;
   private rateLimitMap: Map<string, RateLimitEntry> = new Map();
   private requestCount = 0;
   private startTime: number = 0;
@@ -71,11 +70,12 @@ export class ReachVetServer extends EventEmitter {
   constructor(config: Partial<ServerConfig> = {}) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
-    this.osvClient = new OSVClient();
-    
-    if (this.config.osvCache) {
-      this.osvCacheInstance = new OSVCache(undefined, this.config.cacheTtl);
-    }
+    this.osvClient = new OSVClient({
+      cache: {
+        enabled: this.config.osvCache,
+        ttlSeconds: this.config.cacheTtl ? this.config.cacheTtl / 1000 : 3600,
+      },
+    });
   }
 
   async start(): Promise<void> {
@@ -412,23 +412,18 @@ export class ReachVetServer extends EventEmitter {
       return { status: 400, body: { error: 'package.name and package.ecosystem required' } };
     }
 
+    if (!body.version) {
+      return { status: 400, body: { error: 'version required' } };
+    }
+
     try {
-      // Check cache first
-      if (this.osvCacheInstance) {
-        const cached = await this.osvCacheInstance.get(body.package.name, body.package.ecosystem);
-        if (cached) {
-          return { status: 200, body: { vulns: cached, cached: true } };
-        }
-      }
+      const vulns = await this.osvClient.queryPackage(
+        body.package.ecosystem,
+        body.package.name,
+        body.version
+      );
 
-      const vulns = await this.osvClient.query(body.package.name, body.package.ecosystem, body.version);
-
-      // Cache result
-      if (this.osvCacheInstance && vulns.length > 0) {
-        await this.osvCacheInstance.set(body.package.name, body.package.ecosystem, vulns);
-      }
-
-      return { status: 200, body: { vulns, cached: false } };
+      return { status: 200, body: { vulns } };
     } catch (err) {
       const error = err as Error;
       return { status: 500, body: { error: 'OSV query failed', message: error.message } };
@@ -437,7 +432,7 @@ export class ReachVetServer extends EventEmitter {
 
   private async handleOsvBatch(req: ApiRequest): Promise<ApiResponse> {
     const body = req.body as {
-      queries: Array<{ package: { name: string; ecosystem: string }; version?: string }>;
+      queries: Array<{ package: { name: string; ecosystem: string }; version: string }>;
     };
 
     if (!body?.queries || !Array.isArray(body.queries)) {
@@ -446,6 +441,13 @@ export class ReachVetServer extends EventEmitter {
 
     if (body.queries.length > 100) {
       return { status: 400, body: { error: 'Maximum 100 queries per batch' } };
+    }
+
+    // Validate all queries have version
+    for (const q of body.queries) {
+      if (!q.package?.name || !q.package?.ecosystem || !q.version) {
+        return { status: 400, body: { error: 'Each query requires package.name, package.ecosystem, and version' } };
+      }
     }
 
     try {
@@ -457,7 +459,13 @@ export class ReachVetServer extends EventEmitter {
         }))
       );
 
-      return { status: 200, body: { results } };
+      // Convert Map to array for JSON serialization
+      const resultsArray = Array.from(results.entries()).map(([key, vulns]) => ({
+        key,
+        vulns,
+      }));
+
+      return { status: 200, body: { results: resultsArray } };
     } catch (err) {
       const error = err as Error;
       return { status: 500, body: { error: 'OSV batch query failed', message: error.message } };
