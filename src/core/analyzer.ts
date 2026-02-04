@@ -151,20 +151,38 @@ export class Analyzer {
       }
     }
 
-    // Run analysis
+    // Run analysis with timing
+    const startTime = Date.now();
     const results = await adapter.analyze(this.options.sourceDir, enrichedComponents);
+    const analysisDurationMs = Date.now() - startTime;
+
+    // Get skipped files if available
+    const skippedFiles = 'getSkippedFiles' in adapter 
+      ? (adapter as { getSkippedFiles(): string[] }).getSkippedFiles()
+      : [];
 
     // Calculate summary
     const summary = this.calculateSummary(results);
 
-    return {
+    const output: AnalysisOutput = {
       version: VERSION,
       timestamp: new Date().toISOString(),
       sourceDir: this.options.sourceDir,
       language: language as SupportedLanguage,
       summary,
-      results
+      results,
+      metadata: {
+        analysisDurationMs
+      }
     };
+
+    // Add skipped files if any
+    if (skippedFiles.length > 0) {
+      output.skippedFiles = skippedFiles;
+      summary.filesSkipped = skippedFiles.length;
+    }
+
+    return output;
   }
 
   /**

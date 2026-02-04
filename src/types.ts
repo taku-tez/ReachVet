@@ -121,6 +121,8 @@ export interface AnalysisSummary {
   unknown: number;
   vulnerableReachable: number;  // Vulnerable AND reachable
   warningsCount: number;        // Total warnings across all components
+  filesAnalyzed?: number;       // Number of source files analyzed
+  filesSkipped?: number;        // Number of files skipped due to errors
 }
 
 export interface AnalysisOutput {
@@ -130,6 +132,13 @@ export interface AnalysisOutput {
   language: SupportedLanguage;
   summary: AnalysisSummary;
   results: ComponentResult[];
+  /** Files that were skipped due to parse errors */
+  skippedFiles?: string[];
+  /** Analysis metadata for observability */
+  metadata?: {
+    analysisDurationMs?: number;
+    adapterVersion?: string;
+  };
 }
 
 // ============================================================

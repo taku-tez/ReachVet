@@ -146,6 +146,9 @@ export abstract class BaseLanguageAdapter implements LanguageAdapter {
     return files;
   }
 
+  /** Track skipped files for observability */
+  protected skippedFiles: string[] = [];
+
   /**
    * Read and parse all source files, returning only those with imports
    * Uses concurrency limit for parallel processing
@@ -157,6 +160,7 @@ export abstract class BaseLanguageAdapter implements LanguageAdapter {
   ): Promise<Array<{ file: string; imports: T[]; source: string }>> {
     const files = await this.findSourceFiles(sourceDir, customIgnore);
     const limit = pLimit(this.concurrency);
+    this.skippedFiles = []; // Reset for each analysis
 
     const tasks = files.map(file => limit(async () => {
       try {
@@ -166,14 +170,22 @@ export abstract class BaseLanguageAdapter implements LanguageAdapter {
           return { file, imports, source: content };
         }
         return null;
-      } catch {
-        // Skip files that can't be parsed
+      } catch (error) {
+        // Track skipped files for observability
+        this.skippedFiles.push(file);
         return null;
       }
     }));
 
     const results = await Promise.all(tasks);
     return results.filter((r): r is { file: string; imports: T[]; source: string } => r !== null);
+  }
+
+  /**
+   * Get files that were skipped due to parse errors
+   */
+  getSkippedFiles(): string[] {
+    return this.skippedFiles;
   }
 
   /**
