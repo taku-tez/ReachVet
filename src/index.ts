@@ -135,3 +135,14 @@ export {
   type LicenseCheckResult,
   type LicenseComplianceReport
 } from './license/index.js';
+
+// Shell completions
+export {
+  generateCompletions,
+  generateBashCompletions,
+  generateZshCompletions,
+  generateFishCompletions,
+  getSupportedShells,
+  getInstallInstructions,
+  type ShellType
+} from './completions/index.js';

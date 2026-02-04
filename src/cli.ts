@@ -1034,5 +1034,45 @@ program
     }
   });
 
+// === completions command ===
+program
+  .command('completions')
+  .description('Generate shell completion script')
+  .argument('[shell]', 'Shell type: bash, zsh, fish')
+  .option('--install', 'Show installation instructions')
+  .action(async (shell: string | undefined, options: { install?: boolean }) => {
+    const { generateCompletions, getSupportedShells, getInstallInstructions } = await import('./completions/index.js');
+
+    // Show supported shells if no argument
+    if (!shell) {
+      console.log(chalk.cyan('Supported shells:'));
+      for (const s of getSupportedShells()) {
+        console.log(`  • ${s}`);
+      }
+      console.log();
+      console.log(chalk.gray('Usage: reachvet completions <shell>'));
+      console.log(chalk.gray('       reachvet completions <shell> --install'));
+      return;
+    }
+
+    // Validate shell type
+    const supported = getSupportedShells();
+    if (!supported.includes(shell as 'bash' | 'zsh' | 'fish')) {
+      console.error(chalk.red(`Unsupported shell: ${shell}`));
+      console.error(chalk.gray(`Supported: ${supported.join(', ')}`));
+      process.exit(1);
+    }
+
+    // Show install instructions if requested
+    if (options.install) {
+      console.log(getInstallInstructions(shell as 'bash' | 'zsh' | 'fish'));
+      return;
+    }
+
+    // Generate and output completion script
+    const script = generateCompletions(shell as 'bash' | 'zsh' | 'fish');
+    console.log(script);
+  });
+
 // Run CLI
 program.parse();
