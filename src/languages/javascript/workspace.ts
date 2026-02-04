@@ -6,7 +6,7 @@
 
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join, dirname, basename } from 'node:path';
+import { join, dirname } from 'node:path';
 import { glob } from 'glob';
 
 export interface WorkspaceInfo {

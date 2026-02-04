@@ -11,7 +11,8 @@ import { OSVClient } from './osv/index.js';
 import { parseSimpleJson, parseFromStdin, parseSBOM } from './input/index.js';
 import { listSupportedLanguages, detectLanguage } from './languages/index.js';
 import { toSarif, generateGraph, printAnnotations } from './output/index.js';
-import type { Component, ComponentResult, AnalysisOutput } from './types.js';
+import { startWatch, Watcher } from './watch/index.js';
+import type { Component, ComponentResult, AnalysisOutput, SupportedLanguage } from './types.js';
 import { writeFile } from 'node:fs/promises';
 import { VERSION } from './version.js';
 
@@ -356,6 +357,85 @@ program
         const stats = await client.cacheStats();
         console.log(JSON.stringify(stats, null, 2));
       }
+
+    } catch (error) {
+      console.error(chalk.red(`Error: ${(error as Error).message}`));
+      process.exit(1);
+    }
+  });
+
+// === watch command ===
+program
+  .command('watch')
+  .description('Watch source files and re-analyze on changes')
+  .requiredOption('-s, --source <dir>', 'Source code directory to watch')
+  .option('-c, --components <file>', 'JSON file with component list')
+  .option('--sbom <file>', 'SBOM file (CycloneDX or SPDX)')
+  .option('-l, --language <lang>', 'Language (auto-detect if not specified)')
+  .option('--osv', 'Fetch vulnerability data from OSV.dev')
+  .option('--osv-cache <dir>', 'OSV cache directory')
+  .option('--osv-ttl <seconds>', 'OSV cache TTL in seconds', parseInt)
+  .option('--debounce <ms>', 'Debounce delay in milliseconds', parseInt, 500)
+  .option('--quiet', 'Quiet mode - only show summary line')
+  .option('--ignore <patterns...>', 'Additional glob patterns to ignore')
+  .action(async (options) => {
+    try {
+      // Load components
+      let components: Component[];
+
+      if (options.sbom) {
+        components = await parseSBOM(options.sbom);
+      } else if (options.components) {
+        components = await parseSimpleJson(options.components);
+      } else {
+        console.error(chalk.red('Error: Provide --components or --sbom'));
+        process.exit(1);
+      }
+
+      if (components.length === 0) {
+        console.error(chalk.red('Error: No components to analyze'));
+        process.exit(1);
+      }
+
+      // Build ignore patterns
+      const defaultIgnored = ['**/node_modules/**', '**/.git/**', '**/dist/**', '**/build/**'];
+      const ignored = options.ignore
+        ? [...defaultIgnored, ...options.ignore]
+        : defaultIgnored;
+
+      // Start watcher
+      let watcher: Watcher | null = null;
+      
+      watcher = await startWatch({
+        sourceDir: options.source,
+        components,
+        language: options.language as SupportedLanguage | undefined,
+        osvLookup: options.osv,
+        osvOptions: options.osv ? {
+          cache: {
+            enabled: true,
+            directory: options.osvCache,
+            ttlSeconds: options.osvTtl ?? 3600,
+          },
+        } : undefined,
+        debounceMs: options.debounce,
+        quiet: options.quiet,
+        ignored,
+      });
+
+      // Handle Ctrl+C gracefully
+      const cleanup = async () => {
+        if (watcher) {
+          await watcher.stop();
+          process.exit(0);
+        }
+      };
+
+      process.on('SIGINT', cleanup);
+      process.on('SIGTERM', cleanup);
+
+      // Keep process alive
+      await new Promise<void>(() => {});
 
     } catch (error) {
       console.error(chalk.red(`Error: ${(error as Error).message}`));

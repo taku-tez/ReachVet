@@ -48,6 +48,39 @@ securify sbom export | reachvet analyze -s ./src --stdin
 reachvet check -s ./src -c components.json
 ```
 
+### Watch Mode
+
+Monitor your source files for changes and automatically re-analyze:
+
+```bash
+# Basic watch mode
+reachvet watch -s ./src -c components.json
+
+# Watch with SBOM input
+reachvet watch -s ./src --sbom bom.json
+
+# Quiet mode (summary only)
+reachvet watch -s ./src -c components.json --quiet
+
+# With OSV vulnerability lookup
+reachvet watch -s ./src -c components.json --osv
+
+# Custom debounce delay (ms)
+reachvet watch -s ./src -c components.json --debounce 1000
+
+# Ignore additional patterns
+reachvet watch -s ./src -c components.json --ignore "**/*.test.ts" "**/fixtures/**"
+```
+
+Watch mode features:
+- 🔄 Auto re-analysis on file changes
+- ⏱️ Configurable debounce delay
+- 🔇 Quiet mode for minimal output
+- 🚨 Vulnerability highlighting
+- 🎯 Smart file filtering (only relevant source files)
+
+Press `Ctrl+C` to stop watching.
+
 ### Input Formats
 
 **Simple JSON:**
