@@ -12,6 +12,7 @@ import {
   findCrateUsages,
   isStdLibrary,
   normalizeCrateName,
+  detectUnsafeCode,
   type RustUseInfo,
 } from './parser.js';
 import type {
@@ -156,6 +157,25 @@ export class RustLanguageAdapter extends BaseLanguageAdapter {
       }
       
       if (hasUsage) break;
+    }
+
+    // Detect unsafe code usage
+    for (const [file, { content }] of fileUses) {
+      const unsafeWarnings = detectUnsafeCode(content, file);
+      for (const uw of unsafeWarnings) {
+        const typeMessages: Record<string, string> = {
+          'unsafe_block': 'Unsafe block - manual memory management',
+          'unsafe_fn': 'Unsafe function declaration',
+          'unsafe_impl': 'Unsafe trait implementation',
+          'unsafe_trait': 'Unsafe trait definition'
+        };
+        warnings.push({
+          code: 'unsafe_code',
+          message: typeMessages[uw.type] || `Unsafe code: ${uw.type}`,
+          location: uw.location,
+          severity: 'warning'
+        });
+      }
     }
 
     // Build result
