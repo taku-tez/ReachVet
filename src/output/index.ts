@@ -22,3 +22,16 @@ export {
   type SPDXDocument,
   type VEXStatement,
 } from './sbom.js';
+export {
+  toCSV,
+  toCSVMultiple,
+  toDependenciesCSV,
+  toVulnerabilitiesCSV,
+  parseCSV,
+  getCSVHelpText,
+  DEFAULT_COLUMNS,
+  ALL_COLUMNS,
+  type CSVOptions,
+  type CSVColumn,
+  type CSVRow,
+} from './csv.js';

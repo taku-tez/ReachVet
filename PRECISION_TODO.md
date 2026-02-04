@@ -623,6 +623,55 @@ Status: ✅ Completed (2026-02-05 05:27)
 - 24 new tests (monorepo.test.ts)
 - Total: 1210 tests passing (v0.5.12)
 
+## Batch 48: CSV Output Support ✅ DONE (2026-02-05 07:45)
+- CSV format output for analysis results ✅
+  - toCSV(): Main CSV generator with options ✅
+  - toCSVMultiple(): Multi-project CSV output ✅
+  - toDependenciesCSV(): Dependencies-only CSV ✅
+  - toVulnerabilitiesCSV(): Vulnerabilities-only CSV ✅
+  - parseCSV(): Parse CSV back to objects ✅
+- Configurable options ✅
+  - Delimiter: comma, semicolon, tab ✅
+  - Include header or omit ✅
+  - Include all deps or only vulnerable ✅
+  - Include warnings ✅
+  - Custom column selection ✅
+- CLI integration ✅
+  - --csv [file]: Output CSV to stdout or file ✅
+  - --csv-delimiter: Set delimiter ✅
+  - --csv-all: Include all dependencies ✅
+  - --csv-vulns-only: Vulnerabilities only ✅
+  - --csv-deps-only: Dependencies only ✅
+  - --csv-no-header: Omit header row ✅
+  - --csv-full: All available columns ✅
+- Exported from main package ✅
+
+Status: ✅ Completed (2026-02-05 07:45)
+- src/output/csv.ts: Full CSV output formatter
+- CLI options in analyze and check commands
+- 31 new tests (csv.test.ts)
+- Total: 1286 tests passing (v0.5.14)
+
+## Batch 47: Vulnerability Fix Suggestions ✅ DONE (2026-02-05 06:32)
+- Extract fixed versions from OSV vulnerability data ✅
+- Generate upgrade commands for 9+ package managers ✅
+  - npm, yarn, pnpm, pip, poetry, cargo, gem, bundler
+  - composer, go, maven, gradle, nuget, hex, pub, hackage, opam
+- Calculate upgrade risk (low/medium/high) based on semver ✅
+- Detect breaking changes (major version bumps) ✅
+- Support multiple vulnerabilities per package ✅
+- Generate fix scripts (bash/powershell) ✅
+- CLI: `reachvet suggest-fixes` command ✅
+  - --json, --script [file], --powershell options ✅
+  - --include-prerelease, --max-major-bump options ✅
+
+Status: ✅ Completed (2026-02-05 06:32)
+- src/fixes/index.ts: Vulnerability fix suggestions module
+- CLI: `reachvet suggest-fixes` with multiple input/output options
+- formatFixReport(), toFixJson(), generateFixScript()
+- 45 new tests (fixes.test.ts)
+- Total: 1255 tests passing (v0.5.13)
+
 ## Batch 45: KEV Integration ✅ DONE (2026-02-05 04:18)
 - src/kev/index.ts: KEV (Known Exploited Vulnerabilities) catalog module ✅
   - KEVClient: Fetch and query CISA KEV catalog ✅
@@ -705,6 +754,22 @@ Status: ✅ Completed (2026-02-05 05:27)
 ## Progress Log
 
 ### 2026-02-05
+- 07:45 Batch 48 CSV Output Support完了 - 31 new tests, 1286 total
+  - src/output/csv.ts: CSV output formatter
+  - toCSV, toCSVMultiple, toDependenciesCSV, toVulnerabilitiesCSV
+  - parseCSV for round-trip parsing
+  - Configurable options: delimiter, header, columns, warnings
+  - CLI: --csv, --csv-delimiter, --csv-all, --csv-vulns-only, --csv-deps-only, --csv-no-header, --csv-full
+  - Exported from main package with types
+- 06:32 Batch 47 Vulnerability Fix Suggestions完了 - 45 new tests, 1255 total
+  - src/fixes/index.ts: Vulnerability fix suggestions module
+  - Extract fixed versions from OSV vulnerability data
+  - Generate upgrade commands for 9+ package managers
+  - Calculate upgrade risk (low/medium/high) based on semver
+  - Detect breaking changes and filter by max major bump
+  - Generate fix scripts (bash/powershell)
+  - CLI: `reachvet suggest-fixes` command
+  - Exported from main package with full type definitions
 - 05:27 Batch 46 Monorepo Detection & Multi-Project Analysis完了 - 24 new tests, 1210 total
   - src/monorepo/index.ts: Full monorepo detection and analysis module
   - Detects npm/yarn/pnpm workspaces, Lerna, Rush, Nx, Turborepo

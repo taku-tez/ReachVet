@@ -10,7 +10,7 @@ import { Analyzer } from './core/analyzer.js';
 import { OSVClient } from './osv/index.js';
 import { parseSimpleJson, parseFromStdin, parseSBOM } from './input/index.js';
 import { listSupportedLanguages, detectLanguage } from './languages/index.js';
-import { toSarif, generateGraph, printAnnotations, toJUnitXml, toCycloneDX, toSPDX, generateVEXStatements } from './output/index.js';
+import { toSarif, generateGraph, printAnnotations, toJUnitXml, toCycloneDX, toSPDX, generateVEXStatements, toCSV, toDependenciesCSV, toVulnerabilitiesCSV, type CSVOptions } from './output/index.js';
 import { startWatch, Watcher } from './watch/index.js';
 import {
   isGitRepository,
@@ -63,6 +63,13 @@ program
   .option('--sbom-spdx [file]', 'Output in SPDX 2.3 SBOM format')
   .option('--sbom-include-unreachable', 'Include unreachable components in SBOM output')
   .option('--vex [file]', 'Output VEX (Vulnerability Exploitability eXchange) statements')
+  .option('--csv [file]', 'Output in CSV format (for spreadsheets/data analysis)')
+  .option('--csv-delimiter <char>', 'CSV delimiter: comma, semicolon, tab', 'comma')
+  .option('--csv-all', 'Include all dependencies in CSV, not just vulnerable')
+  .option('--csv-vulns-only', 'Output only vulnerability rows')
+  .option('--csv-deps-only', 'Output only dependency info (no vulnerability columns)')
+  .option('--csv-no-header', 'Omit header row in CSV')
+  .option('--csv-full', 'Include all available columns (EPSS, KEV, summary, etc.)')
   .option('--app-name <name>', 'Application name for SBOM metadata', 'analyzed-application')
   .option('--app-version <version>', 'Application version for SBOM metadata', '1.0.0')
   .option('--ignore-file <file>', 'Custom ignore file (.reachvetignore by default)')
@@ -217,6 +224,36 @@ program
         } else {
           console.log(json);
         }
+      } else if (options.csv !== undefined) {
+        // Output CSV format
+        const csvOptions: CSVOptions = {
+          includeHeader: !options.csvNoHeader,
+          includeAll: options.csvAll ?? false,
+          delimiter: options.csvDelimiter === 'semicolon' ? ';' : options.csvDelimiter === 'tab' ? '\t' : ',',
+          columns: options.csvFull ? undefined : undefined, // Use default or full
+        };
+
+        let csvOutput: string;
+        if (options.csvDepsOnly) {
+          csvOutput = toDependenciesCSV(output.results, csvOptions);
+        } else if (options.csvVulnsOnly) {
+          csvOutput = toVulnerabilitiesCSV(output.results, csvOptions);
+        } else {
+          // If --csv-full, use all columns
+          if (options.csvFull) {
+            csvOptions.columns = ['package', 'version', 'ecosystem', 'reachable', 'vulnerability_id', 'vulnerability_severity', 'vulnerability_summary', 'cvss', 'epss', 'kev', 'fixed_version', 'import_location', 'used_functions'];
+          }
+          csvOutput = toCSV(output.results, csvOptions);
+        }
+
+        if (typeof options.csv === 'string') {
+          await writeFile(options.csv, csvOutput, 'utf-8');
+          if (options.verbose) {
+            console.error(chalk.green(`CSV written to ${options.csv}`));
+          }
+        } else {
+          console.log(csvOutput);
+        }
       } else if (options.annotations) {
         // Output GitHub Actions annotations
         printAnnotations(output, {
@@ -272,6 +309,13 @@ program
   .option('--sbom-spdx [file]', 'Output in SPDX 2.3 SBOM format')
   .option('--sbom-include-unreachable', 'Include unreachable components in SBOM output')
   .option('--vex [file]', 'Output VEX (Vulnerability Exploitability eXchange) statements')
+  .option('--csv [file]', 'Output in CSV format (for spreadsheets/data analysis)')
+  .option('--csv-delimiter <char>', 'CSV delimiter: comma, semicolon, tab', 'comma')
+  .option('--csv-all', 'Include all dependencies in CSV, not just vulnerable')
+  .option('--csv-vulns-only', 'Output only vulnerability rows')
+  .option('--csv-deps-only', 'Output only dependency info (no vulnerability columns)')
+  .option('--csv-no-header', 'Omit header row in CSV')
+  .option('--csv-full', 'Include all available columns (EPSS, KEV, summary, etc.)')
   .option('--app-name <name>', 'Application name for SBOM metadata', 'analyzed-application')
   .option('--app-version <version>', 'Application version for SBOM metadata', '1.0.0')
   .option('--junit-all', 'Include all dependencies in JUnit output')
@@ -392,6 +436,35 @@ program
           console.error(chalk.green(`VEX statements written to ${options.vex}`));
         } else {
           console.log(json);
+        }
+        return;
+      }
+
+      if (options.csv !== undefined) {
+        // Output CSV format
+        const csvOptions: CSVOptions = {
+          includeHeader: !options.csvNoHeader,
+          includeAll: options.csvAll ?? false,
+          delimiter: options.csvDelimiter === 'semicolon' ? ';' : options.csvDelimiter === 'tab' ? '\t' : ',',
+        };
+
+        let csvOutput: string;
+        if (options.csvDepsOnly) {
+          csvOutput = toDependenciesCSV(output.results, csvOptions);
+        } else if (options.csvVulnsOnly) {
+          csvOutput = toVulnerabilitiesCSV(output.results, csvOptions);
+        } else {
+          if (options.csvFull) {
+            csvOptions.columns = ['package', 'version', 'ecosystem', 'reachable', 'vulnerability_id', 'vulnerability_severity', 'vulnerability_summary', 'cvss', 'epss', 'kev', 'fixed_version', 'import_location', 'used_functions'];
+          }
+          csvOutput = toCSV(output.results, csvOptions);
+        }
+
+        if (typeof options.csv === 'string') {
+          await writeFile(options.csv, csvOutput, 'utf-8');
+          console.error(chalk.green(`CSV written to ${options.csv}`));
+        } else {
+          console.log(csvOutput);
         }
         return;
       }

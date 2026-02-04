@@ -110,13 +110,24 @@ export {
   toSPDX,
   generateVEXStatements,
   generateGraph,
+  toCSV,
+  toCSVMultiple,
+  toDependenciesCSV,
+  toVulnerabilitiesCSV,
+  parseCSV,
+  getCSVHelpText,
+  DEFAULT_COLUMNS as CSV_DEFAULT_COLUMNS,
+  ALL_COLUMNS as CSV_ALL_COLUMNS,
   type SarifOutput,
   type JUnitOptions,
   type SBOMOptions,
   type CycloneDXBom,
   type SPDXDocument,
   type VEXStatement,
-  type GraphOptions
+  type GraphOptions,
+  type CSVOptions,
+  type CSVColumn,
+  type CSVRow
 } from './output/index.js';
 
 // License compliance
