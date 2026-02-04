@@ -14,8 +14,7 @@ import type {
 import { getAdapter, detectLanguage } from '../languages/index.js';
 import { OSVClient } from '../osv/index.js';
 import type { OSVClientOptions, VulnerableFunctionInfo } from '../osv/index.js';
-
-const VERSION = '0.2.1';
+import { VERSION } from '../version.js';
 
 export interface EnrichedAnalyzeOptions extends AnalyzeOptions {
   /** Enable OSV vulnerability lookup */

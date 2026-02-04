@@ -52,11 +52,18 @@ export class OSVClient {
   private cache: OSVCache;
   private timeout: number;
   private retries: number;
+  /** Warnings collected during queries (e.g., batch failures) */
+  public warnings: string[] = [];
 
   constructor(options: OSVClientOptions = {}) {
     this.cache = new OSVCache(options.cache);
     this.timeout = options.timeout ?? 10000;
     this.retries = options.retries ?? 2;
+  }
+
+  /** Clear warnings */
+  clearWarnings(): void {
+    this.warnings = [];
   }
 
   /**
@@ -212,10 +219,23 @@ export class OSVClient {
           await this.cache.set(normalizedEcosystem, pkg.name, pkg.version, vulns);
         }
       } catch (error) {
-        // On batch failure, mark uncached as empty
+        // On batch failure, try individual queries as fallback
+        console.error(`OSV batch query failed, falling back to individual queries: ${error}`);
+        this.warnings.push(`OSV batch query failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        
         for (const pkg of uncached) {
-          const key = `${this.normalizeEcosystem(pkg.ecosystem)}:${pkg.name}:${pkg.version}`;
-          results.set(key, []);
+          const normalizedEcosystem = this.normalizeEcosystem(pkg.ecosystem);
+          const key = `${normalizedEcosystem}:${pkg.name}:${pkg.version}`;
+          
+          try {
+            const vulns = await this.queryPackage(pkg.name, pkg.version, pkg.ecosystem);
+            results.set(key, vulns);
+            await this.cache.set(normalizedEcosystem, pkg.name, pkg.version, vulns);
+          } catch {
+            // Individual query also failed, mark as empty
+            results.set(key, []);
+            this.warnings.push(`OSV query failed for ${pkg.name}@${pkg.version}`);
+          }
         }
       }
     }

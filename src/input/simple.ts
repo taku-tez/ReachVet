@@ -61,11 +61,19 @@ export function parseSimpleJsonString(content: string): Component[] {
       throw new Error(`Component at index ${index} missing 'version'`);
     }
 
+    const ecosystem = item.ecosystem ?? 'npm';
+    
+    // Generate purl based on ecosystem (https://github.com/package-url/purl-spec)
+    const purlEcosystem = ecosystem.toLowerCase();
+    const purl = purlEcosystem === 'unknown' 
+      ? undefined  // Don't generate purl for unknown ecosystem
+      : `pkg:${purlEcosystem}/${item.name}@${item.version}`;
+    
     const component: Component = {
       name: item.name,
       version: item.version,
-      ecosystem: item.ecosystem ?? 'npm',
-      purl: `pkg:npm/${item.name}@${item.version}`
+      ecosystem,
+      ...(purl && { purl })
     };
 
     if (item.vulnerabilities && Array.isArray(item.vulnerabilities)) {

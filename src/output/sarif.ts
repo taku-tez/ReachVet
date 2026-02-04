@@ -144,6 +144,41 @@ const RULES: Record<string, {
     level: 'note',
     tags: ['analysis-limitation'],
   },
+  TYPE_ONLY_IMPORT: {
+    id: 'RV104',
+    name: 'TypeOnlyImport',
+    shortDescription: 'Type-only import - no runtime dependency',
+    level: 'note',
+    tags: ['typescript', 'analysis-limitation'],
+  },
+  SIDE_EFFECT_IMPORT: {
+    id: 'RV105',
+    name: 'SideEffectImport',
+    shortDescription: 'Side-effect only import - loaded for side effects',
+    level: 'note',
+    tags: ['analysis-limitation'],
+  },
+  UNUSED_IMPORT: {
+    id: 'RV106',
+    name: 'UnusedImport',
+    shortDescription: 'Import is declared but never used',
+    level: 'warning',
+    tags: ['code-quality'],
+  },
+  BARREL_FILE: {
+    id: 'RV107',
+    name: 'BarrelFileReexport',
+    shortDescription: 'Dependency accessed via re-export/barrel file',
+    level: 'note',
+    tags: ['analysis-limitation', 'indirect'],
+  },
+  INDIRECT_USAGE: {
+    id: 'RV108',
+    name: 'IndirectUsage',
+    shortDescription: 'Conditional or indirect usage detected',
+    level: 'note',
+    tags: ['analysis-limitation'],
+  },
 };
 
 // ============================================================
@@ -306,6 +341,26 @@ function warningToSarif(result: ComponentResult, warning: AnalysisWarning): Sari
       break;
     case 'star_import':
       ruleId = RULES.STAR_IMPORT.id;
+      level = 'note';
+      break;
+    case 'type_only_import':
+      ruleId = RULES.TYPE_ONLY_IMPORT.id;
+      level = 'note';
+      break;
+    case 'side_effect_import':
+      ruleId = RULES.SIDE_EFFECT_IMPORT.id;
+      level = 'note';
+      break;
+    case 'unused_import':
+      ruleId = RULES.UNUSED_IMPORT.id;
+      level = 'warning';
+      break;
+    case 'barrel_file':
+      ruleId = RULES.BARREL_FILE.id;
+      level = 'note';
+      break;
+    case 'indirect_usage':
+      ruleId = RULES.INDIRECT_USAGE.id;
       level = 'note';
       break;
     default:

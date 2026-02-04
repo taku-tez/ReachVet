@@ -54,6 +54,9 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
     const reexportedModules = new Map<string, { chains: ReexportChain[]; sourceFile: string }>();
     const reexportWarnings: AnalysisWarning[] = [];
     
+    // Reset skipped files tracking
+    this.skippedFiles = [];
+    
     for (const file of files) {
       try {
         const content = await readFile(file, 'utf-8');
@@ -90,7 +93,8 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
           }
         }
       } catch {
-        // Skip files that can't be parsed
+        // Track skipped files for observability
+        this.skippedFiles.push(file);
       }
     }
 
