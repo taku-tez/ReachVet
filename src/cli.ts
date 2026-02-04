@@ -10,7 +10,7 @@ import { Analyzer } from './core/analyzer.js';
 import { OSVClient } from './osv/index.js';
 import { parseSimpleJson, parseFromStdin, parseSBOM } from './input/index.js';
 import { listSupportedLanguages, detectLanguage } from './languages/index.js';
-import { toSarif, generateGraph } from './output/index.js';
+import { toSarif, generateGraph, printAnnotations } from './output/index.js';
 import type { Component, ComponentResult, AnalysisOutput } from './types.js';
 import { writeFile } from 'node:fs/promises';
 import { VERSION } from './version.js';
@@ -41,6 +41,8 @@ program
   .option('--osv', 'Fetch vulnerability data from OSV.dev')
   .option('--osv-cache <dir>', 'OSV cache directory')
   .option('--osv-ttl <seconds>', 'OSV cache TTL in seconds', parseInt)
+  .option('--annotations', 'Output GitHub Actions annotations')
+  .option('--annotations-notices', 'Include notice-level annotations for imported deps')
   .action(async (options) => {
     try {
       // Load components
@@ -110,6 +112,18 @@ program
           ? JSON.stringify(sarif, null, 2)
           : JSON.stringify(sarif);
         console.log(json);
+      } else if (options.annotations) {
+        // Output GitHub Actions annotations
+        printAnnotations(output, {
+          errors: true,
+          warnings: true,
+          notices: options.annotationsNotices ?? false,
+        });
+        // Also output JSON summary
+        const json = options.pretty
+          ? JSON.stringify(output, null, 2)
+          : JSON.stringify(output);
+        console.log(json);
       } else {
         const json = options.pretty
           ? JSON.stringify(output, null, 2)
@@ -148,6 +162,8 @@ program
   .option('--osv', 'Fetch vulnerability data from OSV.dev')
   .option('--osv-cache <dir>', 'OSV cache directory')
   .option('--osv-ttl <seconds>', 'OSV cache TTL in seconds', parseInt)
+  .option('--annotations', 'Output GitHub Actions annotations')
+  .option('--annotations-notices', 'Include notice-level annotations for imported deps')
   .action(async (options) => {
     try {
       // Load components
@@ -201,6 +217,15 @@ program
         const sarif = toSarif(output);
         console.log(JSON.stringify(sarif, null, 2));
         return;
+      }
+
+      if (options.annotations) {
+        // Output GitHub Actions annotations before human-readable report
+        printAnnotations(output, {
+          errors: true,
+          warnings: true,
+          notices: options.annotationsNotices ?? false,
+        });
       }
 
       if (options.json) {

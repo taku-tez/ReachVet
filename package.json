@@ -1,6 +1,6 @@
 {
   "name": "reachvet",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Supply chain reachability analyzer - Check if vulnerable dependencies are actually used in your code",
   "main": "dist/index.js",
   "bin": {

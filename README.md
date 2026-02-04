@@ -212,7 +212,96 @@ for (const result of output.results) {
 securify sbom export --format cyclonedx | reachvet analyze -s ./src --stdin
 ```
 
-### CI/CD
+### GitHub Actions (Recommended)
+
+Use ReachVet as a GitHub Action:
+
+```yaml
+- name: ReachVet Analysis
+  uses: taku-tez/ReachVet@v1
+  with:
+    source: './src'
+    sbom: 'bom.json'
+    osv: 'true'                    # Fetch vulnerability data from OSV.dev
+    sarif-file: 'reachvet.sarif'   # For GitHub Code Scanning
+    fail-on-vulnerable: 'true'
+```
+
+**Full Example:**
+
+```yaml
+name: Security Scan
+on: [push, pull_request]
+
+jobs:
+  reachability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate SBOM
+        run: npx @cyclonedx/cyclonedx-npm --output-file bom.json
+
+      - name: ReachVet Analysis
+        id: reachvet
+        uses: taku-tez/ReachVet@v1
+        with:
+          source: '.'
+          sbom: 'bom.json'
+          osv: 'true'
+          sarif-file: 'reachvet.sarif'
+          annotate: 'true'
+
+      - name: Upload SARIF to GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: reachvet.sarif
+
+      - name: Check Results
+        run: |
+          echo "Total: ${{ steps.reachvet.outputs.total }}"
+          echo "Reachable: ${{ steps.reachvet.outputs.reachable }}"
+          echo "Vulnerable & Reachable: ${{ steps.reachvet.outputs.vulnerable-reachable }}"
+```
+
+**Action Inputs:**
+
+| Input | Description | Default |
+|-------|-------------|---------|
+| `source` | Source directory | `.` |
+| `sbom` | SBOM file path | - |
+| `components` | Component list JSON | - |
+| `language` | Force language | auto-detect |
+| `osv` | Fetch OSV.dev data | `true` |
+| `fail-on-vulnerable` | Fail if vulnerable reachable | `true` |
+| `fail-on-reachable` | Fail if any reachable | `false` |
+| `sarif-file` | SARIF output path | - |
+| `annotate` | Create annotations | `true` |
+
+**Action Outputs:**
+
+| Output | Description |
+|--------|-------------|
+| `total` | Total components |
+| `reachable` | Reachable count |
+| `imported` | Imported but unclear |
+| `not-reachable` | Not reachable count |
+| `vulnerable-reachable` | Vulnerable & reachable |
+| `sarif-file` | Generated SARIF path |
+
+### CLI with Annotations
+
+Generate GitHub Actions workflow annotations from CLI:
+
+```bash
+# Output annotations + JSON
+reachvet analyze -s ./src --sbom bom.json --annotations
+
+# Include notices for imported deps
+reachvet analyze -s ./src --sbom bom.json --annotations --annotations-notices
+```
+
+### Basic CI/CD
 
 ```yaml
 - name: Check vulnerable dependencies

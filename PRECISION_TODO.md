@@ -313,16 +313,27 @@ Status: ✅ Completed (2026-02-04 07:27)
 - Incremental re-analysis on change
 - Terminal UI with live updates
 
-## Batch 27: GitHub Actions Integration 🟡 MED
-- Standalone GitHub Action
-- PR comment with analysis summary
-- Check run annotations
+## Batch 27: GitHub Actions Integration 🟡 MED ✅ DONE (2026-02-04 09:42)
+- Standalone GitHub Action ✅
+  - action.yml with inputs/outputs
+  - Auto SBOM detection
+  - Configurable fail conditions
+- PR comment with analysis summary ✅ (via workflow annotations)
+- Check run annotations ✅
+  - src/output/annotations.ts
+  - --annotations CLI flag
+  - Error/Warning/Notice levels
 
 ---
 
 ## Progress Log
 
 ### 2026-02-04
+- 09:42 Batch 27 GitHub Actions Integration完了 - 17 new tests, 582 total
+  - action.yml: Standalone GitHub Action definition
+  - src/output/annotations.ts: Annotation generator
+  - --annotations, --annotations-notices CLI options
+  - README: GitHub Actions documentation
 - 08:37 Batch 23 依存関係グラフ可視化完了 - 20 new tests, 554 total
   - Mermaid/DOT output formats for dependency visualization
   - CLI: --graph [file], --dot [file] options

@@ -1,0 +1,215 @@
+name: 'ReachVet'
+description: 'Supply chain reachability analyzer - Check if vulnerable dependencies are actually used'
+author: 'taku-tez'
+
+branding:
+  icon: 'shield'
+  color: 'green'
+
+inputs:
+  source:
+    description: 'Source code directory to analyze'
+    required: false
+    default: '.'
+  sbom:
+    description: 'SBOM file path (CycloneDX or SPDX JSON)'
+    required: false
+  components:
+    description: 'Component list JSON file path'
+    required: false
+  language:
+    description: 'Language to analyze (auto-detected if not specified)'
+    required: false
+  osv:
+    description: 'Fetch vulnerability data from OSV.dev'
+    required: false
+    default: 'true'
+  fail-on-vulnerable:
+    description: 'Fail the workflow if vulnerable reachable code is found'
+    required: false
+    default: 'true'
+  fail-on-reachable:
+    description: 'Fail the workflow if any dependency is reachable'
+    required: false
+    default: 'false'
+  sarif-file:
+    description: 'Output SARIF file for GitHub Code Scanning'
+    required: false
+  annotate:
+    description: 'Create workflow annotations for findings'
+    required: false
+    default: 'true'
+  working-directory:
+    description: 'Working directory for the analysis'
+    required: false
+    default: '.'
+
+outputs:
+  total:
+    description: 'Total number of components analyzed'
+  reachable:
+    description: 'Number of reachable components'
+  imported:
+    description: 'Number of imported but unclear usage components'
+  not-reachable:
+    description: 'Number of not reachable components'
+  vulnerable-reachable:
+    description: 'Number of vulnerable and reachable components'
+  sarif-file:
+    description: 'Path to the generated SARIF file'
+  json-result:
+    description: 'JSON string of the full analysis result'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install ReachVet
+      shell: bash
+      run: npm install -g reachvet
+
+    - name: Run ReachVet Analysis
+      id: analysis
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        INPUT_SOURCE: ${{ inputs.source }}
+        INPUT_SBOM: ${{ inputs.sbom }}
+        INPUT_COMPONENTS: ${{ inputs.components }}
+        INPUT_LANGUAGE: ${{ inputs.language }}
+        INPUT_OSV: ${{ inputs.osv }}
+        INPUT_FAIL_ON_VULNERABLE: ${{ inputs.fail-on-vulnerable }}
+        INPUT_FAIL_ON_REACHABLE: ${{ inputs.fail-on-reachable }}
+        INPUT_SARIF_FILE: ${{ inputs.sarif-file }}
+        INPUT_ANNOTATE: ${{ inputs.annotate }}
+      run: |
+        set +e  # Don't exit on error
+
+        # Build command
+        CMD="reachvet analyze --source '$INPUT_SOURCE'"
+        
+        if [ -n "$INPUT_SBOM" ]; then
+          CMD="$CMD --sbom '$INPUT_SBOM'"
+        elif [ -n "$INPUT_COMPONENTS" ]; then
+          CMD="$CMD --components '$INPUT_COMPONENTS'"
+        else
+          # Try to find SBOM files
+          for sbom_file in bom.json sbom.json cyclonedx.json spdx.json; do
+            if [ -f "$sbom_file" ]; then
+              CMD="$CMD --sbom '$sbom_file'"
+              echo "::notice::Found SBOM file: $sbom_file"
+              break
+            fi
+          done
+        fi
+        
+        if [ -n "$INPUT_LANGUAGE" ]; then
+          CMD="$CMD --language '$INPUT_LANGUAGE'"
+        fi
+        
+        if [ "$INPUT_OSV" = "true" ]; then
+          CMD="$CMD --osv"
+        fi
+        
+        CMD="$CMD --pretty"
+        
+        # Run analysis and capture output
+        OUTPUT=$(eval $CMD 2>&1)
+        EXIT_CODE=$?
+        
+        # Parse JSON output
+        if echo "$OUTPUT" | jq -e '.summary' > /dev/null 2>&1; then
+          RESULT="$OUTPUT"
+        else
+          echo "::error::ReachVet analysis failed: $OUTPUT"
+          exit 1
+        fi
+        
+        # Extract summary
+        TOTAL=$(echo "$RESULT" | jq -r '.summary.total')
+        REACHABLE=$(echo "$RESULT" | jq -r '.summary.reachable')
+        IMPORTED=$(echo "$RESULT" | jq -r '.summary.imported')
+        NOT_REACHABLE=$(echo "$RESULT" | jq -r '.summary.notReachable')
+        VULNERABLE_REACHABLE=$(echo "$RESULT" | jq -r '.summary.vulnerableReachable')
+        
+        # Set outputs
+        echo "total=$TOTAL" >> $GITHUB_OUTPUT
+        echo "reachable=$REACHABLE" >> $GITHUB_OUTPUT
+        echo "imported=$IMPORTED" >> $GITHUB_OUTPUT
+        echo "not-reachable=$NOT_REACHABLE" >> $GITHUB_OUTPUT
+        echo "vulnerable-reachable=$VULNERABLE_REACHABLE" >> $GITHUB_OUTPUT
+        
+        # Escape JSON for output
+        JSON_ESCAPED=$(echo "$RESULT" | jq -c '.')
+        echo "json-result=$JSON_ESCAPED" >> $GITHUB_OUTPUT
+        
+        # Generate SARIF if requested
+        if [ -n "$INPUT_SARIF_FILE" ]; then
+          SARIF_CMD="reachvet analyze --source '$INPUT_SOURCE'"
+          if [ -n "$INPUT_SBOM" ]; then
+            SARIF_CMD="$SARIF_CMD --sbom '$INPUT_SBOM'"
+          elif [ -n "$INPUT_COMPONENTS" ]; then
+            SARIF_CMD="$SARIF_CMD --components '$INPUT_COMPONENTS'"
+          else
+            for sbom_file in bom.json sbom.json cyclonedx.json spdx.json; do
+              if [ -f "$sbom_file" ]; then
+                SARIF_CMD="$SARIF_CMD --sbom '$sbom_file'"
+                break
+              fi
+            done
+          fi
+          if [ -n "$INPUT_LANGUAGE" ]; then
+            SARIF_CMD="$SARIF_CMD --language '$INPUT_LANGUAGE'"
+          fi
+          if [ "$INPUT_OSV" = "true" ]; then
+            SARIF_CMD="$SARIF_CMD --osv"
+          fi
+          SARIF_CMD="$SARIF_CMD --sarif"
+          eval $SARIF_CMD > "$INPUT_SARIF_FILE"
+          echo "sarif-file=$INPUT_SARIF_FILE" >> $GITHUB_OUTPUT
+          echo "::notice::SARIF file written to $INPUT_SARIF_FILE"
+        fi
+        
+        # Generate annotations if requested
+        if [ "$INPUT_ANNOTATE" = "true" ]; then
+          # Vulnerable reachable components - error
+          echo "$RESULT" | jq -r '.results[] | select(.status == "reachable" and .component.vulnerabilities != null and (.component.vulnerabilities | length) > 0) | "::error title=Vulnerable Dependency Reachable::\(.component.name)@\(.component.version) is vulnerable and reachable in your code. Vulnerabilities: \(.component.vulnerabilities | map(.id) | join(", "))"'
+          
+          # Reachable components - warning
+          echo "$RESULT" | jq -r '.results[] | select(.status == "reachable" and (.component.vulnerabilities == null or (.component.vulnerabilities | length) == 0)) | "::warning title=Dependency Reachable::\(.component.name)@\(.component.version) is reachable in your code"'
+          
+          # Imported components - notice
+          echo "$RESULT" | jq -r '.results[] | select(.status == "imported") | "::notice title=Dependency Imported::\(.component.name)@\(.component.version) is imported but usage is unclear"'
+        fi
+        
+        # Print summary
+        echo ""
+        echo "═══════════════════════════════════════════════════════"
+        echo "  ReachVet Analysis Summary"
+        echo "═══════════════════════════════════════════════════════"
+        echo "  Total components:      $TOTAL"
+        echo "  🔴 Reachable:          $REACHABLE"
+        echo "  🟡 Imported:           $IMPORTED"
+        echo "  🟢 Not reachable:      $NOT_REACHABLE"
+        if [ "$VULNERABLE_REACHABLE" -gt 0 ]; then
+          echo "  ⚠️  VULNERABLE & REACHABLE: $VULNERABLE_REACHABLE"
+        fi
+        echo "═══════════════════════════════════════════════════════"
+        echo ""
+        
+        # Determine exit code
+        FINAL_EXIT=0
+        if [ "$INPUT_FAIL_ON_VULNERABLE" = "true" ] && [ "$VULNERABLE_REACHABLE" -gt 0 ]; then
+          echo "::error::Found $VULNERABLE_REACHABLE vulnerable and reachable dependencies"
+          FINAL_EXIT=1
+        fi
+        if [ "$INPUT_FAIL_ON_REACHABLE" = "true" ] && [ "$REACHABLE" -gt 0 ]; then
+          echo "::error::Found $REACHABLE reachable dependencies"
+          FINAL_EXIT=1
+        fi
+        
+        exit $FINAL_EXIT
