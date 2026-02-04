@@ -22,7 +22,8 @@ ReachVet helps you prioritize: focus on vulnerabilities that are actually reacha
 - 🔍 **Deep Analysis** - Tracks imports, named exports, and usage
 - 🎯 **Vulnerability Matching** - Checks if affected functions are used
 - 📊 **JSON Output** - Easy integration with CI/CD and other tools
-- 🧩 **Multi-Language** - Supports 15 languages (JS/TS, Python, Go, Java, Rust, Ruby, PHP, C#, Swift, Kotlin, Scala, Elixir, Dart, Perl)
+- 🧩 **Multi-Language** - Supports 18 languages (JS/TS, Python, Go, Java, Rust, Ruby, PHP, C#, Swift, Kotlin, Scala, Elixir, Dart, Perl, Haskell, Clojure, OCaml)
+- ⚠️ **Precision Analysis** - Call graph, dynamic code detection, reflection warnings
 
 ## Installation
 
