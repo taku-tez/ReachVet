@@ -528,11 +528,65 @@ Status: ✅ Completed (2026-02-04 13:48)
 - 43 new tests ✅
 - Total: 980 tests passing (v0.5.5) ✅
 
+## Batch 40: Shell Completions ✅ DONE (2026-02-04 22:47)
+- src/completions/index.ts: Shell completion generators ✅
+  - Bash: _reachvet_completions with _init_completion ✅
+  - Zsh: _reachvet function with state machine ✅
+  - Fish: complete -c reachvet with subcommand detection ✅
+- CLI: `reachvet completions [shell]` command ✅
+  - `reachvet completions bash/zsh/fish` - output script ✅
+  - `reachvet completions <shell> --install` - installation instructions ✅
+- All 13 commands included ✅
+- All 18 languages in --language completions ✅
+- Directory/file path completions ✅
+- Option-specific value completions (ecosystems, graph directions, formats) ✅
+- Exported from main package (generateCompletions, etc.) ✅
+- 35 new tests ✅
+- Total: 1015 tests passing (v0.5.6) ✅
+
+## Batch 41: Ignore File Support ✅ DONE (2026-02-04 23:52)
+- src/ignore/index.ts: Gitignore-style ignore file support ✅
+  - .reachvetignore file parsing ✅
+  - .gitignore fallback (when no .reachvetignore) ✅
+  - Gitignore pattern syntax (**, *, ?, [...], negation !) ✅
+  - Comment support (#) ✅
+  - Directory patterns (trailing /) ✅
+  - Rooted patterns (leading /) ✅
+  - Brace expansion ({a,b,c}) ✅
+- CLI integration ✅
+  - `--ignore-file <file>` - Custom ignore file ✅
+  - `--no-ignore` - Disable ignore file processing ✅
+  - `reachvet init --ignore` - Create .reachvetignore ✅
+  - `reachvet init --ignore-only` - Create only .reachvetignore ✅
+- Helper functions ✅
+  - loadIgnoreConfig(), shouldIgnore(), filterIgnored() ✅
+  - getIgnoreStats(), addPatterns(), mergeConfigs() ✅
+  - generateSampleIgnoreFile() ✅
+- Verbose mode shows loaded patterns ✅
+- Exported from main package ✅
+- 38 new tests (ignore.test.ts) ✅
+- Total: 1053 tests passing (v0.5.7) ✅
+
 ---
 
 ## Progress Log
 
 ### 2026-02-04
+- 23:52 Batch 41 Ignore File Support完了 - 38 new tests, 1053 total
+  - src/ignore/index.ts: Gitignore-style pattern parser
+  - .reachvetignore / .gitignore fallback support
+  - CLI: --ignore-file, --no-ignore options
+  - `reachvet init --ignore` / `--ignore-only` for .reachvetignore generation
+  - Brace expansion, double-star, negation pattern support
+  - Helper functions: loadIgnoreConfig, shouldIgnore, filterIgnored
+  - Exported from main package
+- 22:47 Batch 40 Shell Completions完了 - 35 new tests, 1015 total
+  - src/completions/index.ts: Bash, Zsh, Fish completion generators
+  - CLI: `reachvet completions [shell]` command with --install
+  - All 13 commands and 18 languages included
+  - Ecosystem, graph direction, format completions
+  - Installation instructions for each shell
+  - Exported from main package
 - 20:27 Batch 34 JUnit XML Output完了 - 21 new tests, 903 total
   - src/output/junit.ts: JUnit XML formatter
   - CLI: --junit [file], --junit-all options

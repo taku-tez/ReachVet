@@ -146,3 +146,20 @@ export {
   getInstallInstructions,
   type ShellType
 } from './completions/index.js';
+
+// Ignore file support
+export {
+  loadIgnoreConfig,
+  shouldIgnore,
+  filterIgnored,
+  getIgnoreStats,
+  createEmptyConfig,
+  addPatterns,
+  mergeConfigs,
+  parseIgnoreFile,
+  parseIgnoreLine,
+  generateSampleIgnoreFile,
+  DEFAULT_IGNORE_FILES,
+  type IgnoreConfig,
+  type IgnorePattern
+} from './ignore/index.js';

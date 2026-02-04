@@ -21,6 +21,10 @@ import {
   formatPreCommitOutput,
   generatePreCommitConfig,
 } from './precommit/index.js';
+import {
+  loadIgnoreConfig,
+  generateSampleIgnoreFile,
+} from './ignore/index.js';
 import type { Component, ComponentResult, AnalysisOutput, SupportedLanguage } from './types.js';
 import { writeFile } from 'node:fs/promises';
 import { VERSION } from './version.js';
@@ -61,6 +65,8 @@ program
   .option('--vex [file]', 'Output VEX (Vulnerability Exploitability eXchange) statements')
   .option('--app-name <name>', 'Application name for SBOM metadata', 'analyzed-application')
   .option('--app-version <version>', 'Application version for SBOM metadata', '1.0.0')
+  .option('--ignore-file <file>', 'Custom ignore file (.reachvetignore by default)')
+  .option('--no-ignore', 'Disable ignore file processing')
   .action(async (options) => {
     try {
       // Load components
@@ -90,11 +96,26 @@ program
         }
       }
 
+      // Load ignore patterns
+      let ignorePatterns: string[] = [];
+      if (options.ignore !== false) {
+        const ignoreConfig = await loadIgnoreConfig(
+          options.source,
+          options.ignoreFile
+        );
+        if (ignoreConfig.sources.length > 0 && options.verbose) {
+          console.error(chalk.gray(`Loaded ignore patterns from: ${ignoreConfig.sources.join(', ')}`));
+          console.error(chalk.gray(`  ${ignoreConfig.patterns.length} patterns loaded`));
+        }
+        ignorePatterns = ignoreConfig.patterns.map(p => p.pattern);
+      }
+
       // Run analysis
       const analyzer = new Analyzer({
         sourceDir: options.source,
         language: options.language,
         verbose: options.verbose,
+        ignorePatterns,
         osvLookup: options.osv,
         osvOptions: options.osv ? {
           cache: {
@@ -872,35 +893,68 @@ program
   .command('init')
   .description('Create a configuration file in the current directory')
   .option('-f, --format <format>', 'Config format: json, js', 'json')
-  .option('--force', 'Overwrite existing config file')
+  .option('--ignore', 'Also create .reachvetignore file')
+  .option('--ignore-only', 'Only create .reachvetignore file (skip config)')
+  .option('--force', 'Overwrite existing files')
   .action(async (options) => {
     const { generateSampleConfig, findConfigPath } = await import('./config/index.js');
+    const { existsSync } = await import('node:fs');
     
-    // Check for existing config
-    const existing = findConfigPath(process.cwd());
-    if (existing && !options.force) {
-      console.error(chalk.yellow(`Config file already exists: ${existing}`));
-      console.error(chalk.gray('Use --force to overwrite'));
-      process.exit(1);
+    const createdFiles: string[] = [];
+    
+    // Create .reachvetignore if requested
+    if (options.ignore || options.ignoreOnly) {
+      const ignoreFile = '.reachvetignore';
+      if (existsSync(ignoreFile) && !options.force) {
+        console.error(chalk.yellow(`Ignore file already exists: ${ignoreFile}`));
+        console.error(chalk.gray('Use --force to overwrite'));
+        if (!options.ignoreOnly) {
+          // Continue with config file
+        } else {
+          process.exit(1);
+        }
+      } else {
+        await writeFile(ignoreFile, generateSampleIgnoreFile());
+        createdFiles.push(ignoreFile);
+      }
     }
     
-    // Generate config content
-    const content = generateSampleConfig(options.format as 'json' | 'js');
-    
-    // Determine filename
-    let filename: string;
-    if (options.format === 'js') {
-      filename = 'reachvet.config.cjs';
-    } else {
-      filename = '.reachvetrc.json';
+    // Create config file unless --ignore-only
+    if (!options.ignoreOnly) {
+      // Check for existing config
+      const existing = findConfigPath(process.cwd());
+      if (existing && !options.force) {
+        console.error(chalk.yellow(`Config file already exists: ${existing}`));
+        console.error(chalk.gray('Use --force to overwrite'));
+        process.exit(1);
+      }
+      
+      // Generate config content
+      const content = generateSampleConfig(options.format as 'json' | 'js');
+      
+      // Determine filename
+      let filename: string;
+      if (options.format === 'js') {
+        filename = 'reachvet.config.cjs';
+      } else {
+        filename = '.reachvetrc.json';
+      }
+      
+      // Write file
+      await writeFile(filename, content);
+      createdFiles.push(filename);
     }
     
-    // Write file
-    await writeFile(filename, content);
-    console.log(chalk.green(`✓ Created ${filename}`));
-    console.log();
-    console.log('Edit the config file to customize ReachVet behavior.');
-    console.log('Documentation: https://github.com/taku-tez/ReachVet#configuration');
+    // Report created files
+    for (const file of createdFiles) {
+      console.log(chalk.green(`✓ Created ${file}`));
+    }
+    
+    if (createdFiles.length > 0) {
+      console.log();
+      console.log('Edit the files to customize ReachVet behavior.');
+      console.log('Documentation: https://github.com/taku-tez/ReachVet#configuration');
+    }
   });
 
 // === config command ===
