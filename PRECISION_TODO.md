@@ -607,6 +607,22 @@ Status: ✅ Completed (2026-02-04 13:48)
 - 37 new tests (epss.test.ts) ✅
 - Total: 1149 tests passing (v0.5.10) ✅
 
+## Batch 46: Monorepo Detection & Multi-Project Analysis ✅ DONE (2026-02-05 05:27)
+- Detect npm/yarn/pnpm workspaces, Lerna, Rush, Nx, Turborepo ✅
+- Detect Cargo workspace and Go workspace (go.work) ✅
+- Automatic detection of manual monorepos ✅
+- Discover projects with language-specific parsers ✅
+- Multi-project parallel analysis ✅
+- Aggregated summary (shared deps, top vulns) ✅
+- Output formats: text, JSON, Markdown ✅
+- CLI: `reachvet monorepo` command ✅
+
+Status: ✅ Completed (2026-02-05 05:27)
+- src/monorepo/index.ts: Full monorepo detection and analysis
+- CLI: `reachvet monorepo` with --detect, --list, --parallel, --json, --markdown
+- 24 new tests (monorepo.test.ts)
+- Total: 1210 tests passing (v0.5.12)
+
 ## Batch 45: KEV Integration ✅ DONE (2026-02-05 04:18)
 - src/kev/index.ts: KEV (Known Exploited Vulnerabilities) catalog module ✅
   - KEVClient: Fetch and query CISA KEV catalog ✅
@@ -689,6 +705,16 @@ Status: ✅ Completed (2026-02-04 13:48)
 ## Progress Log
 
 ### 2026-02-05
+- 05:27 Batch 46 Monorepo Detection & Multi-Project Analysis完了 - 24 new tests, 1210 total
+  - src/monorepo/index.ts: Full monorepo detection and analysis module
+  - Detects npm/yarn/pnpm workspaces, Lerna, Rush, Nx, Turborepo
+  - Detects Cargo workspace (Cargo.toml [workspace]) and Go workspace (go.work)
+  - Automatic manual monorepo detection (multiple package.json/go.mod/etc.)
+  - Language-specific project parsers (JS, Go, Rust, Python, Ruby, PHP)
+  - Multi-project parallel analysis with concurrency control
+  - Aggregated summary: shared deps, top vulnerabilities, affected projects
+  - CLI: `reachvet monorepo` with --detect, --list, --parallel, --json, --markdown
+  - Output formats: text report, JSON, Markdown
 - 04:18 Batch 45 KEV Integration完了 - 38 new tests, 1187 total
   - src/kev/index.ts: KEV (Known Exploited Vulnerabilities) catalog module
   - KEVClient: Fetch and query CISA KEV catalog (with retries)

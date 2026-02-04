@@ -250,3 +250,24 @@ export {
   type SharedDependency,
   type VulnerabilitySummary
 } from './monorepo/index.js';
+
+// Vulnerability fix suggestions
+export {
+  suggestFixes,
+  generateFixSuggestion,
+  formatFixReport,
+  toFixJson,
+  generateFixScript,
+  extractFixedVersion,
+  getHighestFixedVersion,
+  parseVersion as parseFixVersion,
+  compareVersions as compareFixVersions,
+  getVersionBumpType,
+  calculateRisk,
+  type VulnerablePackage,
+  type FixSuggestion,
+  type VulnerabilityFix,
+  type FixReport,
+  type UnfixablePackage,
+  type FixOptions
+} from './fixes/index.js';

@@ -1679,5 +1679,97 @@ program
     }
   });
 
+// === suggest-fixes command ===
+program
+  .command('suggest-fixes')
+  .description('Suggest fixes for vulnerable dependencies based on OSV data')
+  .option('-c, --components <file>', 'JSON file with vulnerable components')
+  .option('--sbom <file>', 'SBOM file with vulnerability data')
+  .option('--stdin', 'Read components from stdin')
+  .option('--json', 'Output as JSON')
+  .option('--script [file]', 'Generate fix script (bash by default)')
+  .option('--powershell', 'Generate PowerShell script (use with --script)')
+  .option('--include-prerelease', 'Include prerelease versions in suggestions')
+  .option('--max-major-bump <n>', 'Maximum major version bumps allowed', parseInt)
+  .option('-v, --verbose', 'Show progress')
+  .action(async (options) => {
+    const {
+      suggestFixes,
+      formatFixReport,
+      toFixJson,
+      generateFixScript,
+    } = await import('./fixes/index.js');
+    const { OSVClient } = await import('./osv/index.js');
+
+    try {
+      // Load components
+      let components: Component[];
+
+      if (options.stdin) {
+        components = await parseFromStdin();
+      } else if (options.sbom) {
+        components = await parseSBOM(options.sbom);
+      } else if (options.components) {
+        components = await parseSimpleJson(options.components);
+      } else {
+        console.error(chalk.red('Error: Provide --components, --sbom, or --stdin'));
+        process.exit(1);
+      }
+
+      // Filter to vulnerable components only
+      const vulnerablePackages = components
+        .filter(c => c.vulnerabilities && c.vulnerabilities.length > 0)
+        .map(c => ({
+          name: c.name,
+          version: c.version,
+          ecosystem: c.ecosystem || 'npm',
+          vulnerabilities: c.vulnerabilities!.map(v => typeof v === 'string' ? v : v.id),
+        }));
+
+      if (vulnerablePackages.length === 0) {
+        console.error(chalk.yellow('No vulnerable components found'));
+        process.exit(0);
+      }
+
+      if (options.verbose) {
+        console.error(chalk.cyan(`ReachVet v${VERSION} - Fix Suggestions`));
+        console.error(chalk.gray(`Analyzing ${vulnerablePackages.length} vulnerable packages...`));
+      }
+
+      const osvClient = new OSVClient();
+      const report = await suggestFixes(vulnerablePackages, {
+        osvClient,
+        includePrerelease: options.includePrerelease,
+        maxMajorBump: options.maxMajorBump ?? 1,
+      });
+
+      // Output
+      if (options.script !== undefined) {
+        const script = generateFixScript(report, {
+          shell: options.powershell ? 'powershell' : 'bash',
+        });
+        if (typeof options.script === 'string') {
+          await writeFile(options.script, script);
+          console.error(chalk.green(`Script written to ${options.script}`));
+        } else {
+          console.log(script);
+        }
+      } else if (options.json) {
+        console.log(toFixJson(report));
+      } else {
+        console.log(formatFixReport(report));
+      }
+
+      // Exit code based on unfixable count
+      if (report.summary.unfixable > 0) {
+        process.exit(1);
+      }
+    } catch (err) {
+      const error = err as Error;
+      console.error(chalk.red(`Error: ${error.message}`));
+      process.exit(1);
+    }
+  });
+
 // Run CLI
 program.parse();
