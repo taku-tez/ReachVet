@@ -285,6 +285,13 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
       usedMembers = [...new Set([...usedMembers, ...calledMembers])];
     }
 
+    // Collect dynamic code warnings (eval, Function, etc.)
+    const allDynamicCodeWarnings: import('./callgraph.js').DynamicCodeWarning[] = [];
+    for (const { source, file } of matchingImports) {
+      const callGraph = analyzeCallGraph(source, file);
+      allDynamicCodeWarnings.push(...callGraph.dynamicCodeWarnings);
+    }
+
     // Check for unused imports (imported but never used in code)
     let hasUnusedImport = false;
     const unusedMembers: string[] = [];
@@ -313,7 +320,7 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
     };
 
     // Generate warnings
-    const warnings = this.generateWarnings(allMatchedImports, hasUnusedImport, unusedMembers);
+    const warnings = this.generateWarnings(allMatchedImports, hasUnusedImport, unusedMembers, allDynamicCodeWarnings);
 
     // Check if specific vulnerable functions are used
     const vulnFunctions = component.vulnerabilities?.flatMap(v => v.affectedFunctions ?? []) ?? [];
@@ -381,7 +388,8 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
   private generateWarnings(
     imports: ImportInfo[],
     hasUnusedImport: boolean = false,
-    unusedMembers: string[] = []
+    unusedMembers: string[] = [],
+    dynamicCodeWarnings: import('./callgraph.js').DynamicCodeWarning[] = []
   ): AnalysisWarning[] {
     const warnings: AnalysisWarning[] = [];
 
@@ -413,6 +421,23 @@ export class JavaScriptAdapter extends BaseLanguageAdapter {
         code: 'unused_import',
         message: `Imported but never used: ${unusedMembers.join(', ')}`,
         severity: 'info'
+      });
+    }
+
+    // Add dynamic code execution warnings
+    for (const dcw of dynamicCodeWarnings) {
+      const typeMessages: Record<string, string> = {
+        'eval': 'eval() detected - arbitrary code execution possible',
+        'Function': 'Function constructor detected - arbitrary code execution possible',
+        'indirect_eval': 'Indirect eval detected - global scope code execution',
+        'setTimeout_string': 'setTimeout with string argument - code execution via string',
+        'setInterval_string': 'setInterval with string argument - code execution via string'
+      };
+      warnings.push({
+        code: 'dynamic_code',
+        message: typeMessages[dcw.type] || `Dynamic code execution: ${dcw.type}`,
+        location: dcw.location,
+        severity: 'warning'
       });
     }
 
