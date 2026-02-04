@@ -284,6 +284,9 @@ for (const result of output.results) {
 | Elixir | ✅ | import, alias, use, require |
 | Dart | ✅ | import |
 | Perl | ✅ | use, require |
+| Haskell | ✅ | import |
+| Clojure | ✅ | require, use, import |
+| OCaml | ✅ | open, include |
 
 ## Integration Examples
 
@@ -412,11 +415,65 @@ reachvet analyze -s ./src -c components.json | \
 5. **Analyze Usage** - Check which exports are actually used
 6. **Report** - Output JSON with reachability status
 
+## Advanced Features
+
+### EPSS & KEV Integration
+
+Prioritize vulnerabilities using real-world exploit data:
+
+```bash
+# Check EPSS scores for CVEs
+reachvet epss --cve CVE-2021-44228 CVE-2022-22965
+
+# Check if CVEs are in CISA KEV
+reachvet kev --cve CVE-2021-44228
+
+# List ransomware-related KEV entries
+reachvet kev --ransomware
+```
+
+### License Compliance
+
+Check license compliance across dependencies:
+
+```bash
+# Check with built-in permissive-only policy
+reachvet analyze -s ./src --sbom bom.json --license-check permissive-only
+
+# Generate attribution file
+reachvet analyze -s ./src --sbom bom.json --attribution NOTICE.txt
+```
+
+### CSV Output
+
+Export results for spreadsheets:
+
+```bash
+reachvet analyze -s ./src --sbom bom.json --csv results.csv
+reachvet analyze -s ./src --sbom bom.json --csv-vulns-only  # Vulnerabilities only
+```
+
+### Dependency Freshness
+
+Check for outdated dependencies:
+
+```bash
+reachvet freshness --sbom bom.json --outdated-only
+```
+
+### Fix Suggestions
+
+Get upgrade commands for vulnerable dependencies:
+
+```bash
+reachvet suggest-fixes --sbom bom.json
+reachvet suggest-fixes --sbom bom.json --script fix.sh
+```
+
 ## Limitations
 
-- **Static analysis only** - Dynamic imports with variables can't be resolved
-- **No call graph** - Doesn't trace function calls after import
-- **Single project** - Doesn't analyze monorepo dependencies
+- **Static analysis only** - Dynamic imports with variables can't be fully resolved (warnings are generated)
+- **Language-specific precision** - Call graph analysis varies by language
 
 ## Contributing
 
