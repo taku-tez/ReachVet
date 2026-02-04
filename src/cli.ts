@@ -804,5 +804,89 @@ program
     console.log(JSON.stringify(config, null, 2));
   });
 
+// === serve command ===
+program
+  .command('serve')
+  .description('Start ReachVet API server')
+  .option('-p, --port <port>', 'Port number', parseInt, 3000)
+  .option('-H, --host <host>', 'Host to bind', '127.0.0.1')
+  .option('--cors', 'Enable CORS (default: true)', true)
+  .option('--no-cors', 'Disable CORS')
+  .option('--api-key <key>', 'Require API key for authentication')
+  .option('--rate-limit <max>', 'Max requests per minute', parseInt, 100)
+  .option('--no-rate-limit', 'Disable rate limiting')
+  .option('--osv-cache', 'Enable OSV cache (default: true)', true)
+  .option('--no-osv-cache', 'Disable OSV cache')
+  .option('--cache-ttl <ms>', 'OSV cache TTL in milliseconds', parseInt, 3600000)
+  .action(async (options) => {
+    const { ReachVetServer } = await import('./server/index.js');
+    
+    const server = new ReachVetServer({
+      port: options.port,
+      host: options.host,
+      cors: options.cors,
+      apiKey: options.apiKey,
+      rateLimit: options.rateLimit === false ? undefined : {
+        windowMs: 60000,
+        maxRequests: options.rateLimit,
+      },
+      osvCache: options.osvCache,
+      cacheTtl: options.cacheTtl,
+    });
+
+    // Event handlers
+    server.on('listening', ({ port, host }: { port: number; host: string }) => {
+      console.log(chalk.green(`🚀 ReachVet API server running at http://${host}:${port}`));
+      console.log();
+      console.log(chalk.gray('Endpoints:'));
+      console.log(chalk.gray('  GET  /              Health check'));
+      console.log(chalk.gray('  GET  /info          Server info'));
+      console.log(chalk.gray('  POST /analyze       Analyze project'));
+      console.log(chalk.gray('  POST /check         Check dependency'));
+      console.log(chalk.gray('  POST /osv/query     Query OSV database'));
+      console.log(chalk.gray('  POST /osv/batch     Batch OSV query'));
+      console.log(chalk.gray('  GET  /languages     List supported languages'));
+      console.log();
+      if (options.apiKey) {
+        console.log(chalk.yellow('🔒 API key authentication enabled'));
+      }
+      if (options.rateLimit !== false) {
+        console.log(chalk.gray(`Rate limit: ${options.rateLimit} requests/minute`));
+      }
+      console.log();
+      console.log(chalk.gray('Press Ctrl+C to stop'));
+    });
+
+    server.on('request', ({ status, durationMs, path }: { status: number; durationMs: number; path: string }) => {
+      const statusColor = status < 400 ? chalk.green : status < 500 ? chalk.yellow : chalk.red;
+      console.log(`${statusColor(status)} ${path} ${chalk.gray(`${durationMs}ms`)}`);
+    });
+
+    server.on('error', (err: Error) => {
+      console.error(chalk.red(`Server error: ${err.message}`));
+    });
+
+    // Graceful shutdown
+    process.on('SIGINT', async () => {
+      console.log();
+      console.log(chalk.gray('Shutting down...'));
+      await server.stop();
+      process.exit(0);
+    });
+
+    process.on('SIGTERM', async () => {
+      await server.stop();
+      process.exit(0);
+    });
+
+    try {
+      await server.start();
+    } catch (err) {
+      const error = err as Error;
+      console.error(chalk.red(`Failed to start server: ${error.message}`));
+      process.exit(1);
+    }
+  });
+
 // Run CLI
 program.parse();

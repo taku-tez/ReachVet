@@ -124,3 +124,6 @@ export { clojureAdapter, ClojureAdapter } from './clojure/index.js';
 export { parseSource as parseClojureSource, parseDepsEdn, parseProjectClj, parseDepsEdnContent, parseProjectCljContent, getNamespacesForPackage, isStandardNamespace } from './clojure/parser.js';
 export { ocamlAdapter, OCamlLanguageAdapter, createOCamlAdapter, parseOpamFileFromPath, parseDuneFileFromPath } from './ocaml/index.js';
 export { parseOCamlSource, parseDuneFile, parseOpamFile, moduleToPackages as ocamlModuleToPackages, isStdlibModule as isOCamlStdlibModule } from './ocaml/parser.js';
+
+// JavaScript parser for quick checks
+export { parseSource as parseJsSource, type ImportInfo } from './javascript/parser.js';

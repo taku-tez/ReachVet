@@ -82,3 +82,12 @@ export {
   findConfigPath,
   type ReachVetConfig
 } from './config/index.js';
+
+// API Server
+export {
+  ReachVetServer,
+  startServer,
+  type ServerConfig,
+  type ApiRequest,
+  type ApiResponse
+} from './server/index.js';
