@@ -10,7 +10,7 @@ import { Analyzer } from './core/analyzer.js';
 import { OSVClient } from './osv/index.js';
 import { parseSimpleJson, parseFromStdin, parseSBOM } from './input/index.js';
 import { listSupportedLanguages, detectLanguage } from './languages/index.js';
-import { toSarif, generateGraph, printAnnotations } from './output/index.js';
+import { toSarif, generateGraph, printAnnotations, toJUnitXml } from './output/index.js';
 import { startWatch, Watcher } from './watch/index.js';
 import {
   isGitRepository,
@@ -51,6 +51,8 @@ program
   .option('--osv', 'Fetch vulnerability data from OSV.dev')
   .option('--osv-cache <dir>', 'OSV cache directory')
   .option('--osv-ttl <seconds>', 'OSV cache TTL in seconds', parseInt)
+  .option('--junit [file]', 'Output in JUnit XML format (CI integration)')
+  .option('--junit-all', 'Include all dependencies in JUnit output')
   .option('--annotations', 'Output GitHub Actions annotations')
   .option('--annotations-notices', 'Include notice-level annotations for imported deps')
   .action(async (options) => {
@@ -122,6 +124,39 @@ program
           ? JSON.stringify(sarif, null, 2)
           : JSON.stringify(sarif);
         console.log(json);
+      } else if (options.junit !== undefined) {
+        // Convert to ReachabilityResult format for JUnit output
+        const junitResult = {
+          dependencies: output.results.map(r => ({
+            name: r.name,
+            version: r.version,
+            isReachable: r.reachable,
+            ecosystem: r.ecosystem,
+            vulnerableFunctions: r.vulnerableFunctions,
+          })),
+          summary: {
+            totalDependencies: output.summary.total,
+            reachableDependencies: output.summary.reachable,
+            vulnerableFunctionsCount: output.summary.vulnerableReachable,
+            reachableVulnerableFunctionsCount: output.summary.vulnerableReachable,
+            analysisTimeMs: 0,
+          },
+          warnings: output.warnings,
+        };
+        const junitXml = toJUnitXml(junitResult, {
+          suiteName: 'ReachVet Analysis',
+          includeWarnings: true,
+          includeAll: options.junitAll ?? false,
+          pretty: true,
+        });
+        if (typeof options.junit === 'string') {
+          await writeFile(options.junit, junitXml, 'utf-8');
+          if (options.verbose) {
+            console.error(chalk.green(`JUnit XML written to ${options.junit}`));
+          }
+        } else {
+          console.log(junitXml);
+        }
       } else if (options.annotations) {
         // Output GitHub Actions annotations
         printAnnotations(output, {
@@ -172,6 +207,8 @@ program
   .option('--osv', 'Fetch vulnerability data from OSV.dev')
   .option('--osv-cache <dir>', 'OSV cache directory')
   .option('--osv-ttl <seconds>', 'OSV cache TTL in seconds', parseInt)
+  .option('--junit [file]', 'Output in JUnit XML format (CI integration)')
+  .option('--junit-all', 'Include all dependencies in JUnit output')
   .option('--annotations', 'Output GitHub Actions annotations')
   .option('--annotations-notices', 'Include notice-level annotations for imported deps')
   .action(async (options) => {
@@ -226,6 +263,40 @@ program
       if (options.sarif) {
         const sarif = toSarif(output);
         console.log(JSON.stringify(sarif, null, 2));
+        return;
+      }
+
+      if (options.junit !== undefined) {
+        // Convert to ReachabilityResult format for JUnit output
+        const junitResult = {
+          dependencies: output.results.map(r => ({
+            name: r.name,
+            version: r.version,
+            isReachable: r.reachable,
+            ecosystem: r.ecosystem,
+            vulnerableFunctions: r.vulnerableFunctions,
+          })),
+          summary: {
+            totalDependencies: output.summary.total,
+            reachableDependencies: output.summary.reachable,
+            vulnerableFunctionsCount: output.summary.vulnerableReachable,
+            reachableVulnerableFunctionsCount: output.summary.vulnerableReachable,
+            analysisTimeMs: 0,
+          },
+          warnings: output.warnings,
+        };
+        const junitXml = toJUnitXml(junitResult, {
+          suiteName: 'ReachVet Analysis',
+          includeWarnings: true,
+          includeAll: options.junitAll ?? false,
+          pretty: true,
+        });
+        if (typeof options.junit === 'string') {
+          await writeFile(options.junit, junitXml, 'utf-8');
+          console.error(chalk.green(`JUnit XML written to ${options.junit}`));
+        } else {
+          console.log(junitXml);
+        }
         return;
       }
 

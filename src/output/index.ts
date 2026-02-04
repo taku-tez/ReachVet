@@ -12,3 +12,4 @@ export {
   type Annotation,
   type AnnotationOptions,
 } from './annotations.js';
+export { toJUnitXml, toJUnitXmlMultiple, type JUnitOptions } from './junit.js';

@@ -442,6 +442,20 @@ Status: ✅ Completed (2026-02-04 13:48)
 - 37 new tests (config.test.ts) ✅
 - Total: 851 tests passing ✅
 
+## Batch 34: JUnit XML Output ✅ DONE (2026-02-04 20:27)
+- JUnit XML format output for CI/CD integration ✅
+  - Jenkins, GitLab CI, Azure DevOps, CircleCI compatible ✅
+  - Test cases from dependencies and warnings ✅
+  - Failures for vulnerable reachable, skipped for non-reachable ✅
+  - XML escaping and proper structure ✅
+- CLI integration ✅
+  - `--junit [file]` - Output JUnit XML (stdout or file) ✅
+  - `--junit-all` - Include all dependencies (not just vulnerable) ✅
+- toJUnitXmlMultiple for multi-project/monorepo analysis ✅
+- Exported from main package ✅
+- 21 new tests (junit.test.ts) ✅
+- Total: 903 tests passing ✅
+
 ## Batch 33: API Server Mode ✅ DONE (2026-02-04 19:21)
 - src/server/index.ts: HTTP API server ✅
   - RESTful endpoints for programmatic access ✅
@@ -477,6 +491,11 @@ Status: ✅ Completed (2026-02-04 13:48)
 ## Progress Log
 
 ### 2026-02-04
+- 20:27 Batch 34 JUnit XML Output完了 - 21 new tests, 903 total
+  - src/output/junit.ts: JUnit XML formatter
+  - CLI: --junit [file], --junit-all options
+  - Multi-project support (toJUnitXmlMultiple)
+  - Compatible with Jenkins, GitLab CI, Azure DevOps, CircleCI
 - 19:21 Batch 33 API Server Mode完了 - 31 new tests, 882 total
   - src/server/index.ts: RESTful HTTP server
   - CLI: `reachvet serve` command
