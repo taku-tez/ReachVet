@@ -28,3 +28,4 @@ coverage/
 # Package manager
 yarn.lock
 pnpm-lock.yaml
+docs/api

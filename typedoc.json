@@ -1,0 +1,34 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts"],
+  "out": "docs/api",
+  "name": "ReachVet API Documentation",
+  "readme": "README.md",
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "theme": "default",
+  "categorizeByGroup": true,
+  "categoryOrder": [
+    "Analyzer",
+    "Types",
+    "Languages",
+    "Input",
+    "Output",
+    "Clients",
+    "Cache",
+    "Utilities",
+    "*"
+  ],
+  "navigationLinks": {
+    "GitHub": "https://github.com/taku-tez/ReachVet",
+    "npm": "https://www.npmjs.com/package/reachvet"
+  },
+  "plugin": [],
+  "exclude": [
+    "**/node_modules/**",
+    "**/__tests__/**",
+    "**/tests/**"
+  ]
+}
